@@ -1,7 +1,7 @@
 ---
 name: brilliant-kb-assistant
 description: xiReactor Brilliant Knowledge Base assistant — manages sessions, daily notes, content routing, search, browsing, governance, and meeting intelligence via MCP. Use when the user asks about organizational knowledge, needs to look something up, wants to create or update KB content, says "resume", "compress", "daily", "search", or when you need institutional context.
-skill_version: 0.7.0
+skill_version: 0.9.0
 ---
 
 # Brilliant Knowledge Base Assistant
@@ -19,7 +19,7 @@ Use this skill to:
 
 ## Session Start: Version Check
 
-**Before any other Brilliant action on a fresh session**, call the `get_version` MCP tool. The response carries seven fields; the three you compare are `min_skill_version`, `latest_skill_version`, and this skill's own `skill_version` (declared in the frontmatter at the top of this file — currently **0.7.0**).
+**Before any other Brilliant action on a fresh session**, call the `get_version` MCP tool. The response carries seven fields; the three you compare are `min_skill_version`, `latest_skill_version`, and this skill's own `skill_version` (declared in the frontmatter at the top of this file — currently **0.9.0**).
 
 Three outcomes — pick exactly one:
 
@@ -177,10 +177,27 @@ At the beginning of every conversation, initialize your KB context:
    - If `agent`: all creates/updates go through `submit_staging`
    - If `web_ui` or `api`: you can write directly with `create_entry`, `update_entry`, `append_entry`
 
-4. **Drill down instead of dumping.** The manifest deliberately omits full content. When you need more detail:
+4. **LOD0-first: read the map before searching.** Before any `search_entries` call, fetch the corpus map via `get_lod`:
+   - `get_lod(axis='structural', scope='corpus', level=0)` — edge count, relation-type histogram, degree bins, orphan count, size buckets, and tag-triangulation motifs (e.g. project+task+completed counts). This is the **structural silhouette** of the KB.
+   - `get_lod(axis='heat', scope='corpus', level=0)` — heat bands (cold / warm / hot / spiking) over `entry_access_log`. Tells you where activity is concentrated right now.
+
+   Use the silhouette to narrow scope **deterministically** before falling back to keyword search. Examples:
+   - User asks "what's blocked?" → tag-triangulation motif `project:* + task + task:blocked` already counted in LOD0; descend with `search_entries(tags=['task:blocked'])`, not a free-text query.
+   - User asks about a project area → pick a community from `top_paths` or a `project:*` tag, fetch `get_lod(axis='structural', scope='community:tag:project:atlas', level=2)` for the community silhouette, then `get_lod(level=4, scope='node:<id>')` for individual node silhouettes.
+
+   `search_entries` is the last resort for genuine keyword discovery, not the first move. The LOD0 map is ~3K tokens; spending it once at session start is far cheaper than blind search across a large corpus.
+
+   **Epistemic axis — narrow on disputed before claiming.** Before adding a new claim or decision that could collide with prior org knowledge, fetch `get_lod(axis='epistemic', scope='corpus', level=0)`. The response carries verification-status counts (`verified`, `unverified`, `disputed`, `deprecated`) plus a per-community breakdown. If `disputed` is non-zero on a community related to your claim, descend with `get_lod(axis='epistemic', scope='node:<id>', level=4)` on the suspected conflict-target before you submit — the node-level silhouette names the disputing entries so you can read them and reconcile (or supersede) instead of layering a fresh contradiction on top.
+
+   The epistemic axis is supported at LOD0 (corpus), LOD2 (community), and LOD4 (node). LOD1 and LOD6 reject `axis=epistemic` with a 400 — those levels are structural-only by design. See `references/api-reference.md` for full request/response examples.
+
+5. **Drill down instead of dumping.** The manifest deliberately omits full content. When you need more detail:
+   - `get_lod(scope='community:tag:<tag>'|'community:path:<prefix>', level=2)` — community silhouette (counts + dominant tags + dominant content_types)
+   - `get_lod(scope='node:<id>', level=4)` — node silhouette (title, tags, length, in/out degree, clusters)
+   - `get_lod(scope='node:<id>', level=6)` — section outline (markdown headings of an entry, no LLM)
    - `get_index(depth=3, path='Projects/')` — titles + relationships under a path bucket
    - `get_index(depth=4, content_type='decision')` — summaries for a slice
-   - `search_entries(q='...')` — keyword lookup across the KB
+   - `search_entries(q='...')` — keyword lookup across the KB (use after LOD0 narrowing, not before)
    - `get_entry(id)` — full content of a single entry (including any `system_entries[].id` you want to read)
    - `get_neighbors(id, depth=2)` — graph traversal from a known entry
 
