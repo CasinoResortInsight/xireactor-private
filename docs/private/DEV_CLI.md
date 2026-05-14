@@ -34,18 +34,28 @@ Stdlib only — no `pip install` needed.
 
 ## Install
 
-The CLI lives at `~/.local/bin/bkb` (already on PATH for most setups).
-It's a self-contained Python 3 script — copy it to any directory on your
-PATH if you prefer a different location.
+Both scripts live in this repo under [`tools/`](../../tools/):
+
+- `tools/bkb` — the CLI (Python 3, stdlib only)
+- `tools/bkb-mcp` — bash launcher that the Brilliant stdio MCP server
+  is registered as, so the `knowledge-base` skill picks up the active
+  `bkb` profile
+
+Install once per developer machine — symlink them onto your PATH:
 
 ```bash
-ls -l ~/.local/bin/bkb     # confirm it's there and executable
+mkdir -p ~/.local/bin
+ln -sf "$PWD/tools/bkb"     ~/.local/bin/bkb
+ln -sf "$PWD/tools/bkb-mcp" ~/.local/bin/bkb-mcp
 bkb --help
 ```
 
-If you set up a fresh machine, the source is at `~/.local/bin/bkb` and
-you can copy or symlink it from this repo if a checked-in copy is added
-later.
+(If `~/.local/bin` isn't on your PATH, add
+`export PATH="$HOME/.local/bin:$PATH"` to your shell rc.)
+
+The CLI keeps all state under `~/.brilliant-dev/` — nothing it writes
+goes back into the repo. Symlinks mean you'll get script updates
+automatically on `git pull`.
 
 ---
 
@@ -244,8 +254,8 @@ OAuth dance — whatever key is in the env at process start is the
 identity every tool call uses. A regular user's `bkai_` key
 authenticates as that user directly (no `X-Act-As-User` needed).
 
-`bkb-mcp` is a small bash launcher (also installed at
-`~/.local/bin/bkb-mcp`) that:
+`bkb-mcp` is a small bash launcher (in [`tools/bkb-mcp`](../../tools/bkb-mcp),
+symlinked onto your PATH per the install step above) that:
 
 1. Reads `~/.brilliant-dev/active` for the current profile name.
 2. Loads that profile's `api_key` and `base_url` from

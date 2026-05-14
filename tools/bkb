@@ -1,0 +1,679 @@
+#!/usr/bin/env python3
+"""bkb — Brilliant KB dev/test CLI with multi-profile credentials.
+
+Stores profiles at ~/.brilliant-dev/credentials.json and the active profile
+name at ~/.brilliant-dev/active. Every call to the Brilliant REST API uses
+the active profile's API key, so switching personas is a single command:
+
+    bkb use maria
+    bkb entry decision Decisions/2026/foo "My decision" < body.md
+    bkb comment Decisions/2026/foo "Looks good to me"
+    bkb use devon
+    bkb search freeplay
+
+The first time you run it, point it at the admin key (from
+brilliant-credentials.txt) and provision three test users (maria, devon,
+sam) in one shot:
+
+    bkb add admin bkai_512d_xxx --role admin --note "from credentials file"
+    bkb use admin
+    bkb provision
+
+Run `bkb help` for the full command list.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+DEFAULT_BASE = os.environ.get("BKB_BASE", "http://localhost:8010")
+CONFIG_DIR = Path(os.environ.get("BKB_CONFIG_DIR", str(Path.home() / ".brilliant-dev")))
+CREDS_FILE = CONFIG_DIR / "credentials.json"
+ACTIVE_FILE = CONFIG_DIR / "active"
+
+
+def _ensure_config_dir() -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _load_creds() -> dict:
+    if not CREDS_FILE.exists():
+        return {"base_url": DEFAULT_BASE, "profiles": {}}
+    return json.loads(CREDS_FILE.read_text())
+
+
+def _save_creds(data: dict) -> None:
+    _ensure_config_dir()
+    CREDS_FILE.write_text(json.dumps(data, indent=2) + "\n")
+    try:
+        CREDS_FILE.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _active_name() -> str | None:
+    if ACTIVE_FILE.exists():
+        n = ACTIVE_FILE.read_text().strip()
+        return n or None
+    return None
+
+
+def _set_active(name: str) -> None:
+    _ensure_config_dir()
+    ACTIVE_FILE.write_text(name + "\n")
+
+
+def _profile(name: str | None = None) -> dict:
+    """Return profile dict for `name` (or active). Exit on missing."""
+    creds = _load_creds()
+    n = name or _active_name()
+    if not n:
+        sys.exit("no active profile — run `bkb use <name>` or `bkb list`")
+    if n not in creds["profiles"]:
+        sys.exit(f"profile not found: {n}")
+    p = dict(creds["profiles"][n])
+    p["_name"] = n
+    p["_base"] = creds.get("base_url", DEFAULT_BASE)
+    return p
+
+
+# ---------------------------------------------------------------------------
+# Low-level HTTP
+# ---------------------------------------------------------------------------
+
+
+def api(method: str, path: str, body=None, profile: dict | None = None) -> tuple[int, object]:
+    """Make a Brilliant REST call using `profile` (or active)."""
+    p = profile or _profile()
+    headers = {
+        "Authorization": f"Bearer {p['api_key']}",
+        "Content-Type": "application/json",
+    }
+    data = json.dumps(body).encode() if body is not None else None
+    url = p["_base"].rstrip("/") + path
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            raw = resp.read().decode()
+            return resp.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode()
+        try:
+            return e.code, json.loads(raw)
+        except Exception:
+            return e.code, raw
+    except urllib.error.URLError as e:
+        sys.exit(f"connection error: {e}")
+
+
+def _ok(status: int) -> bool:
+    return 200 <= status < 300
+
+
+def _bail(status: int, resp) -> None:
+    sys.exit(f"HTTP {status}: {json.dumps(resp, indent=2) if not isinstance(resp, str) else resp}")
+
+
+# ---------------------------------------------------------------------------
+# Helpers: entry resolution, output
+# ---------------------------------------------------------------------------
+
+
+def resolve_entry(ref: str) -> str:
+    """Accept either a UUID-ish id or a logical_path. Return entry id."""
+    # cheap heuristic: paths contain '/', UUIDs don't (and contain '-')
+    if "/" in ref and not ref.startswith("entry_"):
+        status, resp = api("GET", f"/entries?logical_path={urllib.parse.quote(ref)}&limit=2")
+        if not _ok(status):
+            _bail(status, resp)
+        items = resp.get("entries") if isinstance(resp, dict) else resp
+        if not items:
+            sys.exit(f"no entry at logical_path: {ref}")
+        return items[0]["id"]
+    return ref
+
+
+def jprint(obj) -> None:
+    print(json.dumps(obj, indent=2, default=str))
+
+
+def short_entry(e: dict) -> str:
+    return f"  {e.get('id','?')[:8]}  {e.get('content_type','?'):11s}  {e.get('sensitivity','?'):11s}  {e.get('logical_path','?')}"
+
+
+# ---------------------------------------------------------------------------
+# Commands: profile management
+# ---------------------------------------------------------------------------
+
+
+def cmd_list(args):
+    creds = _load_creds()
+    active = _active_name()
+    if not creds["profiles"]:
+        print("(no profiles — `bkb add <name> <api_key>` to start)")
+        return
+    print(f"base: {creds.get('base_url', DEFAULT_BASE)}\n")
+    print(f"  {'':1s}  {'name':12s}  {'role':9s}  {'email':28s}  {'user_id':28s}  note")
+    for name, p in creds["profiles"].items():
+        marker = "*" if name == active else " "
+        print(
+            f"  {marker}  {name:12s}  {p.get('role','?'):9s}  "
+            f"{p.get('email',''):28s}  {p.get('user_id',''):28s}  {p.get('note','')}"
+        )
+
+
+def cmd_use(args):
+    creds = _load_creds()
+    if args.name not in creds["profiles"]:
+        sys.exit(f"unknown profile: {args.name}")
+    _set_active(args.name)
+    print(f"active: {args.name}")
+
+
+def cmd_whoami(args):
+    p = _profile()
+    print(f"profile: {p['_name']}  base: {p['_base']}")
+    status, resp = api("GET", "/session-init", profile=p)
+    if not _ok(status):
+        _bail(status, resp)
+    m = resp["manifest"]
+    u = m["user"]
+    print(
+        f"server says: id={u['id']}  role={u['role']}  dept={u.get('department')}  "
+        f"display={u['display_name']}  source={u['source']}"
+    )
+    print(f"kb total entries (visible): {m['total_entries']}")
+
+
+def cmd_add(args):
+    creds = _load_creds()
+    if "base_url" not in creds:
+        creds["base_url"] = DEFAULT_BASE
+    creds.setdefault("profiles", {})
+    creds["profiles"][args.name] = {
+        "api_key": args.api_key,
+        "email": args.email or "",
+        "role": args.role or "",
+        "note": args.note or "",
+        "user_id": "",
+    }
+    _save_creds(creds)
+    # Best-effort: resolve user_id and role from server
+    p = _profile(args.name)
+    status, resp = api("GET", "/session-init", profile=p)
+    if _ok(status):
+        u = resp["manifest"]["user"]
+        creds["profiles"][args.name]["role"] = u["role"]
+        creds["profiles"][args.name]["user_id"] = u["id"]
+        _save_creds(creds)
+        print(f"added {args.name}  role={u['role']}  user_id={u['id']}")
+    else:
+        print(f"added {args.name} (note: session-init failed: HTTP {status}; key may be wrong)")
+    if not _active_name():
+        _set_active(args.name)
+        print(f"active: {args.name}")
+
+
+def cmd_remove(args):
+    creds = _load_creds()
+    creds["profiles"].pop(args.name, None)
+    _save_creds(creds)
+    if _active_name() == args.name:
+        ACTIVE_FILE.unlink(missing_ok=True)
+    print(f"removed {args.name}")
+
+
+def cmd_base(args):
+    creds = _load_creds()
+    creds["base_url"] = args.url
+    _save_creds(creds)
+    print(f"base: {args.url}")
+
+
+# ---------------------------------------------------------------------------
+# Commands: provisioning test users via invite + redeem
+# ---------------------------------------------------------------------------
+
+
+DEFAULT_TEST_USERS = [
+    # (profile_name, display_name, email, role, password, note)
+    ("maria",  "Maria Alvarez", "maria@dev.local",  "admin",  "dev-password-1", "President / GM"),
+    ("devon",  "Devon Park",    "devon@dev.local",  "editor", "dev-password-1", "Director of Marketing"),
+    ("sam",    "Sam Whitfield", "sam@dev.local",    "editor", "dev-password-1", "Steakhouse GM"),
+    ("viewer", "Viewer User",   "viewer@dev.local", "viewer", "dev-password-1", "Generic viewer for permission tests"),
+]
+
+
+def cmd_provision(args):
+    """As admin, create the four standard test users via invite + redeem."""
+    admin = _profile()  # must be admin
+    status, resp = api("GET", "/session-init", profile=admin)
+    if not _ok(status):
+        _bail(status, resp)
+    if resp["manifest"]["user"]["role"] != "admin":
+        sys.exit(f"active profile '{admin['_name']}' is not admin — `bkb use <admin>` first")
+
+    creds = _load_creds()
+    for name, display, email, role, password, note in DEFAULT_TEST_USERS:
+        if name in creds["profiles"] and not args.force:
+            print(f"  skip {name:8s} (profile exists; pass --force to recreate)")
+            continue
+
+        # 1) admin generates invite
+        status, inv = api("POST", "/invitations", {"default_role": role, "email_hint": email}, profile=admin)
+        if not _ok(status):
+            print(f"  FAIL invite for {name}: HTTP {status} {inv}")
+            continue
+
+        # 2) redeem (unauthenticated)
+        body = {
+            "invite_code": inv["invite_code"],
+            "token": inv["token"],
+            "email": email,
+            "display_name": display,
+            "password": password,
+        }
+        # Redeem doesn't need auth — use a dummy profile
+        p = {"api_key": "", "_base": admin["_base"]}
+        # urllib still needs *some* Authorization-free request — strip header manually
+        url = p["_base"].rstrip("/") + "/invitations/redeem"
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode(), method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req) as resp:
+                redeemed = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            print(f"  FAIL redeem for {name}: HTTP {e.code} {e.read().decode()}")
+            continue
+
+        # 3) save profile
+        creds["profiles"][name] = {
+            "api_key": redeemed["api_key"],
+            "email": redeemed["email"],
+            "role": redeemed["role"],
+            "user_id": redeemed["user_id"],
+            "note": note,
+        }
+        _save_creds(creds)
+        print(f"  ok   {name:8s}  role={redeemed['role']:7s}  user_id={redeemed['user_id']}  email={redeemed['email']}")
+
+    print("\nDone. Use `bkb list` to see profiles, `bkb use <name>` to switch.")
+
+
+def cmd_invite(args):
+    """Generate one invite code (admin)."""
+    status, resp = api("POST", "/invitations", {"default_role": args.role, "email_hint": args.email})
+    if not _ok(status):
+        _bail(status, resp)
+    print("Invite created — token is shown ONCE.\n")
+    print(f"  invite_code: {resp['invite_code']}")
+    print(f"  token:       {resp['token']}")
+    print(f"  role:        {resp['default_role']}")
+    print(f"  expires_at:  {resp['expires_at']}")
+    print("\nRedeem with:")
+    print(f"  bkb redeem {resp['invite_code']} {resp['token']} <email> <display_name> <password> --save <profile-name>")
+
+
+def cmd_redeem(args):
+    """Redeem an invite. Optionally save the resulting key as a profile."""
+    body = {
+        "invite_code": args.invite_code,
+        "token": args.token,
+        "email": args.email,
+        "display_name": args.display_name,
+        "password": args.password,
+    }
+    base = _load_creds().get("base_url", DEFAULT_BASE)
+    url = base.rstrip("/") + "/invitations/redeem"
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            redeemed = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        _bail(e.code, e.read().decode())
+
+    print(f"redeemed — user_id={redeemed['user_id']}  api_key={redeemed['api_key']}")
+
+    if args.save:
+        creds = _load_creds()
+        creds["profiles"][args.save] = {
+            "api_key": redeemed["api_key"],
+            "email": redeemed["email"],
+            "role": redeemed["role"],
+            "user_id": redeemed["user_id"],
+            "note": args.note or "",
+        }
+        _save_creds(creds)
+        print(f"saved profile: {args.save}")
+
+
+# ---------------------------------------------------------------------------
+# Commands: KB operations
+# ---------------------------------------------------------------------------
+
+
+def _read_content(arg: str | None) -> str:
+    """Return content from arg or stdin.
+
+    - None or '-' → stdin
+    - '@path'     → file
+    - else        → literal
+    """
+    if arg is None or arg == "-":
+        return sys.stdin.read()
+    if arg.startswith("@"):
+        return Path(arg[1:]).read_text()
+    return arg
+
+
+def cmd_entry(args):
+    """Create an entry. content from --content / @file / stdin."""
+    content = _read_content(args.content)
+    body = {
+        "title": args.title,
+        "content": content,
+        "content_type": args.type,
+        "logical_path": args.path,
+        "tags": args.tag or [],
+    }
+    if args.summary:   body["summary"] = args.summary
+    if args.department:body["department"] = args.department
+    if args.sensitivity:body["sensitivity"] = args.sensitivity
+    status, resp = api("POST", "/entries", body)
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"created {resp.get('id')}  {resp.get('logical_path')}  sensitivity={resp.get('sensitivity')}")
+
+
+def cmd_append(args):
+    eid = resolve_entry(args.ref)
+    content = _read_content(args.content)
+    status, resp = api("PATCH", f"/entries/{eid}/append", {"content": content})
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"appended to {eid}")
+
+
+def cmd_get(args):
+    eid = resolve_entry(args.ref)
+    status, resp = api("GET", f"/entries/{eid}")
+    if not _ok(status):
+        _bail(status, resp)
+    jprint(resp)
+
+
+def cmd_update(args):
+    eid = resolve_entry(args.ref)
+    patch: dict = {}
+    if args.title:       patch["title"] = args.title
+    if args.summary:     patch["summary"] = args.summary
+    if args.department:  patch["department"] = args.department
+    if args.sensitivity: patch["sensitivity"] = args.sensitivity
+    if args.tag:         patch["tags"] = args.tag
+    if args.content:     patch["content"] = _read_content(args.content)
+    if not patch:
+        sys.exit("nothing to update — pass at least one field")
+    status, resp = api("PUT", f"/entries/{eid}", patch)
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"updated {eid}")
+
+
+def cmd_delete(args):
+    eid = resolve_entry(args.ref)
+    if not args.yes:
+        sys.exit("refusing to delete without --yes")
+    status, resp = api("DELETE", f"/entries/{eid}")
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"deleted {eid}")
+
+
+def cmd_comment(args):
+    eid = resolve_entry(args.ref)
+    body = _read_content(args.body)
+    payload = {"body": body}
+    if args.parent:
+        payload["parent_comment_id"] = args.parent
+    status, resp = api("POST", f"/entries/{eid}/comments", payload)
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"commented on {eid}  comment_id={resp.get('id')}")
+
+
+def cmd_comments(args):
+    eid = resolve_entry(args.ref)
+    status, resp = api("GET", f"/entries/{eid}/comments")
+    if not _ok(status):
+        _bail(status, resp)
+    items = resp.get("comments") if isinstance(resp, dict) else resp
+    if not items:
+        print("(no comments)")
+        return
+    for c in items:
+        author = c.get("author_display_name") or c.get("author_id", "?")
+        ts = c.get("created_at", "")
+        print(f"  [{c.get('id','?')[:8]}] {author}  {ts}")
+        print(f"    {c.get('body','').strip()[:300]}")
+
+
+def cmd_link(args):
+    src = resolve_entry(args.src)
+    tgt = resolve_entry(args.tgt)
+    status, resp = api("POST", f"/entries/{src}/links",
+                       {"target_entry_id": tgt, "link_type": args.type})
+    if not _ok(status):
+        _bail(status, resp)
+    print(f"linked {src} -[{args.type}]-> {tgt}")
+
+
+def cmd_search(args):
+    qs = []
+    if args.q:           qs.append(("q", args.q))
+    if args.type:        qs.append(("content_type", args.type))
+    if args.path:        qs.append(("logical_path", args.path))
+    if args.department:  qs.append(("department", args.department))
+    for t in (args.tag or []):
+        qs.append(("tags", t))
+    if args.limit:       qs.append(("limit", str(args.limit)))
+    path = "/entries"
+    if qs:
+        path += "?" + urllib.parse.urlencode(qs, doseq=True)
+    status, resp = api("GET", path)
+    if not _ok(status):
+        _bail(status, resp)
+    items = resp.get("entries") if isinstance(resp, dict) else resp
+    if not items:
+        print("(no results)")
+        return
+    for e in items:
+        print(short_entry(e))
+
+
+def cmd_zone(args):
+    status, resp = api("GET", "/zone")
+    if not _ok(status):
+        _bail(status, resp)
+    items = resp.get("entries") if isinstance(resp, dict) else resp
+    if not items:
+        print("(zone empty)")
+        return
+    for e in items:
+        print(short_entry(e))
+
+
+def cmd_promote(args):
+    eid = resolve_entry(args.ref)
+    body: dict = {}
+    if args.sensitivity:
+        body["new_sensitivity"] = args.sensitivity
+    if args.to:
+        body["add_principals"] = []
+        for spec in args.to:
+            # format: type:id:role  e.g. group:abcd:viewer  or  user:xyz:editor
+            parts = spec.split(":")
+            if len(parts) != 3:
+                sys.exit(f"--to expects type:id:role, got {spec}")
+            body["add_principals"].append(
+                {"principal_type": parts[0], "principal_id": parts[1], "role": parts[2]}
+            )
+    status, resp = api("POST", "/zone/promote", {"entry_id": eid, **body})
+    if not _ok(status):
+        _bail(status, resp)
+    jprint(resp)
+
+
+def cmd_raw(args):
+    """Low-level passthrough: bkb api METHOD PATH [body]"""
+    body = None
+    if args.body:
+        body = json.loads(_read_content(args.body))
+    status, resp = api(args.method.upper(), args.path, body)
+    print(f"HTTP {status}")
+    if resp is not None:
+        jprint(resp)
+
+
+def cmd_tags(args):
+    status, resp = api("GET", "/tags")
+    if not _ok(status):
+        _bail(status, resp)
+    items = resp.get("tags") if isinstance(resp, dict) else resp
+    for t in items or []:
+        print(f"  {t['count']:5d}  {t['tag']}")
+
+
+def cmd_members(args):
+    status, resp = api("GET", "/org/members")
+    if not _ok(status):
+        _bail(status, resp)
+    for u in (resp.get("members") if isinstance(resp, dict) else resp) or []:
+        print(f"  {u.get('id'):28s}  {u.get('role','?'):9s}  {u.get('display_name','')}  {u.get('email','')}")
+
+
+# ---------------------------------------------------------------------------
+# Argparse
+# ---------------------------------------------------------------------------
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="bkb", description="Brilliant KB dev/test CLI")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    # profile mgmt
+    sp = sub.add_parser("list", help="list profiles"); sp.set_defaults(func=cmd_list)
+    sp = sub.add_parser("use", help="set active profile"); sp.add_argument("name"); sp.set_defaults(func=cmd_use)
+    sp = sub.add_parser("whoami", help="show active profile + server identity"); sp.set_defaults(func=cmd_whoami)
+    sp = sub.add_parser("add", help="register an existing API key as a profile")
+    sp.add_argument("name"); sp.add_argument("api_key")
+    sp.add_argument("--email"); sp.add_argument("--role"); sp.add_argument("--note")
+    sp.set_defaults(func=cmd_add)
+    sp = sub.add_parser("remove", help="remove a profile"); sp.add_argument("name"); sp.set_defaults(func=cmd_remove)
+    sp = sub.add_parser("base", help="set base URL"); sp.add_argument("url"); sp.set_defaults(func=cmd_base)
+
+    # provisioning
+    sp = sub.add_parser("provision", help="(admin) create maria/devon/sam/viewer test users via invite+redeem")
+    sp.add_argument("--force", action="store_true", help="recreate profiles even if present")
+    sp.set_defaults(func=cmd_provision)
+    sp = sub.add_parser("invite", help="(admin) generate one invite code")
+    sp.add_argument("--role", default="viewer"); sp.add_argument("--email", default=None)
+    sp.set_defaults(func=cmd_invite)
+    sp = sub.add_parser("redeem", help="redeem an invite; optionally save as profile")
+    sp.add_argument("invite_code"); sp.add_argument("token"); sp.add_argument("email")
+    sp.add_argument("display_name"); sp.add_argument("password")
+    sp.add_argument("--save", help="save as profile name"); sp.add_argument("--note")
+    sp.set_defaults(func=cmd_redeem)
+
+    # entries
+    sp = sub.add_parser("entry", help="create an entry (content from --content / @file / stdin)")
+    sp.add_argument("type"); sp.add_argument("path"); sp.add_argument("title")
+    sp.add_argument("--content", default=None)
+    sp.add_argument("--summary"); sp.add_argument("--department"); sp.add_argument("--sensitivity")
+    sp.add_argument("--tag", action="append", help="repeat for multiple tags")
+    sp.set_defaults(func=cmd_entry)
+
+    sp = sub.add_parser("append", help="append to an entry")
+    sp.add_argument("ref", help="entry id or logical_path")
+    sp.add_argument("--content", default=None)
+    sp.set_defaults(func=cmd_append)
+
+    sp = sub.add_parser("get", help="fetch an entry")
+    sp.add_argument("ref"); sp.set_defaults(func=cmd_get)
+
+    sp = sub.add_parser("update", help="update entry fields")
+    sp.add_argument("ref")
+    sp.add_argument("--title"); sp.add_argument("--summary"); sp.add_argument("--department")
+    sp.add_argument("--sensitivity"); sp.add_argument("--content")
+    sp.add_argument("--tag", action="append")
+    sp.set_defaults(func=cmd_update)
+
+    sp = sub.add_parser("delete", help="delete an entry")
+    sp.add_argument("ref"); sp.add_argument("--yes", action="store_true")
+    sp.set_defaults(func=cmd_delete)
+
+    # comments
+    sp = sub.add_parser("comment", help="add a comment to an entry")
+    sp.add_argument("ref"); sp.add_argument("body", nargs="?", default=None,
+                                            help="comment body (or @file / stdin if omitted)")
+    sp.add_argument("--parent", help="parent comment id (reply)")
+    sp.set_defaults(func=cmd_comment)
+    sp = sub.add_parser("comments", help="list comments on an entry")
+    sp.add_argument("ref"); sp.set_defaults(func=cmd_comments)
+
+    # links
+    sp = sub.add_parser("link", help="create a link between two entries")
+    sp.add_argument("src"); sp.add_argument("tgt")
+    sp.add_argument("--type", required=True,
+                    choices=["contradicts", "depends_on", "part_of", "relates_to", "supersedes", "tagged_with"])
+    sp.set_defaults(func=cmd_link)
+
+    # search / browse
+    sp = sub.add_parser("search", help="search entries")
+    sp.add_argument("--q"); sp.add_argument("--type"); sp.add_argument("--path")
+    sp.add_argument("--department"); sp.add_argument("--tag", action="append")
+    sp.add_argument("--limit", type=int, default=20)
+    sp.set_defaults(func=cmd_search)
+    sp = sub.add_parser("tags", help="list tags + counts"); sp.set_defaults(func=cmd_tags)
+    sp = sub.add_parser("zone", help="list active profile's personal zone"); sp.set_defaults(func=cmd_zone)
+    sp = sub.add_parser("members", help="(admin) list org members"); sp.set_defaults(func=cmd_members)
+
+    # promote
+    sp = sub.add_parser("promote", help="promote a zone entry (widen access)")
+    sp.add_argument("ref")
+    sp.add_argument("--sensitivity", help="new sensitivity (shared/operational/...)")
+    sp.add_argument("--to", action="append",
+                    help="add a principal: type:id:role (e.g. group:abcd:viewer). Repeat for multiple.")
+    sp.set_defaults(func=cmd_promote)
+
+    # raw passthrough
+    sp = sub.add_parser("api", help="low-level passthrough: bkb api METHOD PATH [body|@file|-]")
+    sp.add_argument("method"); sp.add_argument("path"); sp.add_argument("body", nargs="?", default=None)
+    sp.set_defaults(func=cmd_raw)
+
+    return p
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
