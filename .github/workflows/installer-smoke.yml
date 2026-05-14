@@ -38,57 +38,10 @@ jobs:
         if: failure()
         run: docker compose logs --tail 200 || true
 
-  smoke-self-clone:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run installer from an empty scratch dir (self-clone path)
-        env:
-          # github.head_ref is set on PRs (source branch). github.ref_name covers
-          # push events. GITHUB_SHA is a merge commit on PRs and can't be cloned
-          # with `git clone --branch`, so we need the branch name instead.
-          SELF_CLONE_REF: ${{ github.head_ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          SCRATCH="$(mktemp -d)"
-          cd "$SCRATCH"
-          # Sprint 0044 T-0260/T-0261 — default (browser-ceremony) path:
-          # no --admin-email (would shift this into the headless-with-admin
-          # branch), no --key-out (flag removed). The smoke job drives the
-          # POST /setup ceremony itself, mirroring what an operator's
-          # browser would do.
-          bash "$GITHUB_WORKSPACE/install.sh" \
-            --ref "$SELF_CLONE_REF" \
-            --dir ./clone \
-            --force
-          test -d "$SCRATCH/clone/.git"
-          curl -fsS http://localhost:8010/health >/dev/null
-          # POST /setup to claim the admin latch and pull credentials out
-          # of the response body. The /setup HTML response includes the
-          # plaintext admin API key (bkai_…) exactly once.
-          curl -fsS -X POST http://localhost:8010/setup \
-            -d 'org_name=Smoke&email=smoke@example.com&password=TestPass123&password_confirm=TestPass123' \
-            -o /tmp/response.html
-          key="$(grep -oE 'bkai_[a-f0-9_]+' /tmp/response.html | head -1)"
-          if [ -z "$key" ]; then
-            echo "FAIL: could not extract bkai_ admin key from /setup response"
-            head -n 50 /tmp/response.html || true
-            exit 14
-          fi
-          code="$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ${key}" \
-            http://localhost:8010/entries)"
-          if [ "$code" != "200" ]; then
-            echo "FAIL: /entries returned $code"; exit 12
-          fi
-          echo "PASS: self-clone path OK"
-
-      - name: Dump compose logs on failure
-        if: failure()
-        run: |
-          # Compose lives inside the cloned dir; we don't know the exact path.
-          # Try a best-effort dump.
-          find /tmp -maxdepth 4 -name docker-compose.yml -print 2>/dev/null || true
-          docker ps -a || true
+  # NOTE: the upstream `smoke-self-clone` job was removed in this private
+  # overlay. It cloned `thejeremyhodge/xireactor-brilliant` at the PR's
+  # branch name (via `install.sh --ref`) — branches in this overlay almost
+  # never exist on the public upstream, so the job failed on every PR by
+  # design. The job still lives upstream where it makes sense; reintroduce
+  # here only if `install.sh` gains a `--repo` flag (or `REPO_SLUG` env
+  # override) so it can self-clone from `CasinoResortInsight/xireactor-private`.
