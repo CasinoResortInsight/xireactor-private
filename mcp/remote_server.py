@@ -45,6 +45,7 @@ from starlette.responses import PlainTextResponse, RedirectResponse, Response
 from client import BrilliantClient
 from oauth_store import PgOAuthStore
 from tools import register_tools
+from tools_private import register_private_tools
 
 logger = logging.getLogger("brilliant.auth")
 
@@ -768,6 +769,7 @@ async def _oauth_continue(request: Request) -> Response:
 # Register all 11 Brilliant tools
 api = BrilliantClient()
 register_tools(mcp, api)
+register_private_tools(mcp, api)
 
 
 def create_app():

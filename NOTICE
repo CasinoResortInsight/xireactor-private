@@ -1,0 +1,13 @@
+xireactor-private
+Copyright 2026 CasinoResortInsight
+
+This product includes software developed by Jeremy Hodge and contributors
+as part of the xireactor-brilliant project
+(https://github.com/thejeremyhodge/xireactor-brilliant), licensed under the
+Apache License, Version 2.0. See the LICENSE file for the full text of the
+Apache License.
+
+Modifications and additions in this repository — specifically any files
+under api/routes/private/, mcp/tools_private/, deploy/private/,
+db/migrations/private/, and tests/private/ — are proprietary to
+CasinoResortInsight and are not licensed for redistribution.

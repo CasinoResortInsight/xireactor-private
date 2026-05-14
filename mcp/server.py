@@ -6,10 +6,12 @@ from mcp.server.fastmcp import FastMCP
 
 from client import BrilliantClient
 from tools import register_tools
+from tools_private import register_private_tools
 
 mcp = FastMCP(name="brilliant")
 api = BrilliantClient()
 register_tools(mcp, api)
+register_private_tools(mcp, api)
 
 
 if __name__ == "__main__":

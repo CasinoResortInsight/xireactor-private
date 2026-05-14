@@ -212,6 +212,8 @@ _route_modules = [
     ("routes.version", "router", ""),
     # OAuth tx-handoff login page (Sprint 0039). Prefix yields /oauth/login.
     ("routes.oauth", "router", "/oauth"),
+    # Private overlay (xireactor-private). Mount point for proprietary routers.
+    ("routes.private.example", "router", "/private"),
 ]
 
 for module_path, attr_name, prefix in _route_modules:
