@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# bkb-mcp — launcher for the Brilliant stdio MCP server that uses the
+# currently active bkb profile's API key.
+#
+# Registered in Claude Code (or Claude Desktop) as the `command` for the
+# `brilliant` MCP server. At MCP startup, this script:
+#   1. Reads ~/.brilliant-dev/active to find the active profile name
+#   2. Pulls that profile's api_key + base_url from credentials.json
+#   3. Exports BRILLIANT_SERVICE_API_KEY + BRILLIANT_BASE_URL
+#   4. Execs the stdio server inside the project venv
+#
+# To switch personas in the skill: run `bkb use sam`, then reload the
+# MCP server in Claude Code (or restart the session). The MCP server is
+# spawned at session start and inherits the env from THIS launcher, so
+# whatever profile is active at launch time is the one the skill acts
+# as for that whole session.
+#
+# Why this works: in stdio mode the Brilliant MCP doesn't bind a user
+# via OAuth — it calls the API using whatever key is in
+# BRILLIANT_SERVICE_API_KEY. A user's interactive bkai_ key
+# authenticates as that user directly (no X-Act-As-User needed). So
+# swapping the env var swaps the persona.
+
+set -euo pipefail
+
+CONFIG_DIR="${BKB_CONFIG_DIR:-$HOME/.brilliant-dev}"
+ACTIVE_FILE="$CONFIG_DIR/active"
+CREDS_FILE="$CONFIG_DIR/credentials.json"
+MCP_REPO="${BRILLIANT_MCP_REPO:-$HOME/xireactor-brilliant/mcp}"
+PYTHON_BIN="${BRILLIANT_MCP_PYTHON:-$MCP_REPO/.venv/bin/python}"
+SERVER_PY="$MCP_REPO/server.py"
+
+# Log to a sibling file (stderr is consumed by Claude Code's MCP
+# transport, so we shouldn't write diagnostic output there).
+LOG="$CONFIG_DIR/bkb-mcp.log"
+mkdir -p "$CONFIG_DIR"
+echo "[$(date -Iseconds)] bkb-mcp launching" >> "$LOG"
+
+if [[ ! -f "$ACTIVE_FILE" ]]; then
+    echo "[$(date -Iseconds)] no active profile (run: bkb use <name>)" >> "$LOG"
+    echo "bkb-mcp: no active profile — run \`bkb use <name>\` first" >&2
+    exit 1
+fi
+
+if [[ ! -f "$CREDS_FILE" ]]; then
+    echo "[$(date -Iseconds)] missing credentials.json" >> "$LOG"
+    echo "bkb-mcp: $CREDS_FILE missing — run \`bkb add\` or \`bkb provision\`" >&2
+    exit 1
+fi
+
+PROFILE="$(tr -d '[:space:]' < "$ACTIVE_FILE")"
+
+# Pull api_key + base_url out of the JSON via Python (stdlib only).
+read -r API_KEY BASE_URL USER_ID < <(
+    PROFILE="$PROFILE" CREDS_FILE="$CREDS_FILE" python3 - <<'PY'
+import json, os, sys
+p = os.environ["PROFILE"]
+d = json.load(open(os.environ["CREDS_FILE"]))
+prof = d.get("profiles", {}).get(p)
+if not prof:
+    print(f"bkb-mcp: profile {p!r} not found in credentials", file=sys.stderr)
+    sys.exit(2)
+print(prof.get("api_key", ""), d.get("base_url", "http://localhost:8010"), prof.get("user_id", ""))
+PY
+)
+
+if [[ -z "$API_KEY" ]]; then
+    echo "[$(date -Iseconds)] profile $PROFILE has no api_key" >> "$LOG"
+    echo "bkb-mcp: active profile $PROFILE has no api_key" >&2
+    exit 1
+fi
+
+echo "[$(date -Iseconds)] profile=$PROFILE user_id=$USER_ID base=$BASE_URL" >> "$LOG"
+
+export BRILLIANT_SERVICE_API_KEY="$API_KEY"
+export BRILLIANT_BASE_URL="$BASE_URL"
+export PYTHONUNBUFFERED=1
+
+# Hand off — replaces this process so stdin/stdout pipe straight from
+# Claude Code to the MCP server.
+exec "$PYTHON_BIN" "$SERVER_PY"
