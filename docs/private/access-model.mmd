@@ -1,0 +1,96 @@
+---
+title: Knowledge Base Access Model
+config:
+  theme: base
+  themeVariables:
+    fontSize: 14px
+    primaryColor: "#eef3ff"
+    primaryBorderColor: "#3b5bdb"
+    lineColor: "#4a5568"
+---
+flowchart LR
+
+    %% ============ READ SIDE ============
+    subgraph READ["READ SIDE — Can user U see entry E?"]
+        direction TB
+        E["📄 Entry E<br/><i>sensitivity, owner,<br/>department, grants</i>"]
+        U["👤 User U<br/><i>org role, department</i>"]
+
+        G1{{"GATE 1 — Zone<br/>Is E in a personal zone?<br/>If yes: only the zone owner passes."}}
+        G2{{"GATE 2 — Sensitivity ceiling<br/>viewer ≤ shared/op/meeting<br/>commenter ≤ shared<br/>editor ≤ shared/op/meeting<br/>admin = all (incl. system/strategic)"}}
+        G3{{"GATE 3 — Department scope<br/>Editors: E.department = U.department<br/>OR U owns E OR explicit grant"}}
+        G4{{"GATE 4 — Explicit grants<br/>Per-entry / per-path grants to<br/>user or group. Additive only —<br/>cannot exceed role ceiling."}}
+
+        OUT(["✅ Resolved role on E:<br/><b>viewer · commenter · editor · admin</b><br/>or ❌ no access"])
+
+        E --> G1
+        U --> G1
+        G1 -- "pass" --> G2
+        G1 -- "fail (private zone)" --> NO1["❌ Invisible<br/>(even to admins via normal API)"]
+        G2 -- "pass" --> G3
+        G2 -- "fail" --> NO2["❌ Above role ceiling"]
+        G3 -- "pass" --> G4
+        G3 -- "fail" --> NO3["❌ Wrong department,<br/>no ownership, no grant"]
+        G4 --> OUT
+    end
+
+    %% ============ WRITE SIDE ============
+    subgraph WRITE["WRITE SIDE — How E got there"]
+        direction TB
+        SRC{{"Who is writing?"}}
+        INT["🧑 Interactive user<br/>(admin / editor via web UI)"]
+        AGT["🤖 Agent<br/>(Claude session)"]
+
+        DIRECT["Direct write<br/><i>Tier 1/2 auto-approve</i>"]
+        STAGE["submit_staging<br/>(all agent writes)"]
+
+        T1["Tier 1<br/>Low-risk create / append / link<br/>✅ auto"]
+        T2["Tier 2<br/>Update on non-sensitive<br/>✅ auto (after conflict check)"]
+        T3["Tier 3<br/>High sensitivity (system/strategic)<br/>🧠 AI review (Sonnet 4.6)"]
+        T4["Tier 4<br/>Delete / sensitivity change /<br/>governance rule mod<br/>🧑‍⚖️ human admin only"]
+
+        COMMIT(["📥 Entry committed → READ SIDE"])
+        REJECT(["🚫 Rejected"])
+
+        PROMOTE["promote_entry<br/>add principals · bump sensitivity<br/><i>additive · never downgrades</i>"]
+
+        SRC --> INT
+        SRC --> AGT
+        INT --> DIRECT --> COMMIT
+        AGT --> STAGE
+        STAGE --> T1 --> COMMIT
+        STAGE --> T2 --> COMMIT
+        STAGE --> T3
+        STAGE --> T4
+        T3 -- "confidence ≥ 0.7" --> COMMIT
+        T3 -- "low confidence" --> T4
+        T4 -- "approve" --> COMMIT
+        T4 -- "reject" --> REJECT
+
+        COMMIT -.-> PROMOTE
+        PROMOTE -.-> G4
+    end
+
+    %% ============ LEGEND ============
+    subgraph LEGEND["Legend"]
+        direction TB
+        L1["🔒 <b>Personal zone</b> — auto-created per user, owner-only, default landing spot for new entries with no explicit sensitivity"]
+        L2["🏷 <b>Sensitivity</b> — private · shared · operational · meeting · system/strategic"]
+        L3["👥 <b>Org roles</b> — admin · editor · commenter · viewer · agent (forced staging)"]
+        L4["💬 <b>Comments</b> — anyone who can READ can comment (API-only; not exposed to agents)"]
+        L5["🛡 <b>RLS</b> — all gates enforced at the database row level; no app-code bypass"]
+    end
+
+    classDef gate fill:#fff8e1,stroke:#f59e0b,stroke-width:2px;
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#991b1b;
+    classDef good fill:#dcfce7,stroke:#16a34a,color:#166534;
+    classDef tier fill:#eef2ff,stroke:#6366f1;
+    classDef node fill:#eef3ff,stroke:#3b5bdb;
+    classDef legend fill:#f8fafc,stroke:#94a3b8,color:#334155;
+
+    class G1,G2,G3,G4,SRC gate;
+    class NO1,NO2,NO3,REJECT bad;
+    class OUT,COMMIT good;
+    class T1,T2,T3,T4 tier;
+    class E,U,INT,AGT,DIRECT,STAGE,PROMOTE node;
+    class L1,L2,L3,L4,L5 legend;
