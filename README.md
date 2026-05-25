@@ -55,7 +55,7 @@ Brilliant is designed for a single owner to build a core knowledge base first, t
 
 **Fastest path to a live, team-ready stack — one click, ~3 minutes, no Docker or Postgres know-how required.**
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/thejeremyhodge/xireactor-brilliant)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/CasinoResortInsight/xireactor-private)
 
 Render reads `render.yaml` from the repo root and provisions:
 
