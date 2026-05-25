@@ -266,6 +266,17 @@ async def _create_admin_and_flip_latch(
                 (org_name,),
             )
 
+            # Set request-scoped GUCs so the AFTER INSERT trigger on users
+            # (provision_user_zone) can evaluate `groups` RLS policies that
+            # reference current_setting('app.org_id') / 'app.user_id'. Render
+            # PG has no pre-registered app.* GUCs; the single-arg form throws
+            # on missing. Mirrors the migration 034 backfill pattern.
+            await conn.execute(
+                "SELECT set_config('app.org_id', %s, true), "
+                "set_config('app.user_id', %s, true)",
+                (org_id, user_id),
+            )
+
             # Insert admin user (exact same values as v0.3.1 env-driven path).
             await conn.execute(
                 """

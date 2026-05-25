@@ -1,637 +1,1907 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Knowledge Base — Indian Head Casino · Demo</title>
-<style>
-  :root {
-    --bg: #0e1117;
-    --bg-2: #161b22;
-    --bg-3: #1f242c;
-    --border: #2a313c;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent-2: #d2a8ff;
-    --green: #3fb950;
-    --orange: #d29922;
-    --red: #f85149;
-    --pink: #f778ba;
-    --teal: #39c5cf;
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #ffffff;
-      --bg-2: #f6f8fa;
-      --bg-3: #eaeef2;
-      --border: #d0d7de;
-      --text: #1f2328;
-      --muted: #59636e;
-      --accent: #0969da;
-      --accent-2: #8250df;
-      --green: #1a7f37;
-      --orange: #9a6700;
-      --red: #cf222e;
-      --pink: #bf3989;
-      --teal: #1b7c83;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-  header.topbar {
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-2);
-    padding: 14px 20px;
-    display: flex; align-items: center; gap: 16px;
-  }
-  header.topbar h1 {
-    font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -0.01em;
-  }
-  header.topbar .subtitle {
-    color: var(--muted); font-size: 13px;
-  }
-  header.topbar .stats {
-    margin-left: auto;
-    display: flex; gap: 18px;
-    color: var(--muted); font-size: 12px;
-  }
-  header.topbar .stats b { color: var(--text); font-weight: 600; font-size: 14px; }
-
-  .layout {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    height: calc(100vh - 53px);
-  }
-  aside.sidebar {
-    border-right: 1px solid var(--border);
-    background: var(--bg-2);
-    overflow-y: auto;
-    padding: 16px 14px 80px;
-  }
-  aside.sidebar h3 {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 18px 0 8px;
-    font-weight: 600;
-  }
-  aside.sidebar h3:first-child { margin-top: 0; }
-  .filter-row {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-  .chip {
-    font-size: 12px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--bg-3);
-    color: var(--text);
-    cursor: pointer;
-    user-select: none;
-  }
-  .chip:hover { border-color: var(--accent); color: var(--accent); }
-  .chip.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-  }
-  .chip .count { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
-  .chip.active .count { color: rgba(255,255,255,0.85); }
-
-  .tree { font-size: 13px; }
-  .tree details { margin: 2px 0; }
-  .tree summary {
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 4px;
-    list-style: none;
-  }
-  .tree summary::-webkit-details-marker { display: none; }
-  .tree summary:hover { background: var(--bg-3); }
-  .tree summary::before {
-    content: "▸";
-    display: inline-block;
-    width: 14px;
-    color: var(--muted);
-    transition: transform 0.15s;
-  }
-  .tree details[open] > summary::before { transform: rotate(90deg); }
-  .tree .seg { color: var(--text); font-weight: 500; }
-  .tree .seg .count { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 4px; }
-  .tree .leaf {
-    margin-left: 18px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    cursor: pointer;
-    color: var(--muted);
-    display: block;
-    text-decoration: none;
-    border-left: 2px solid transparent;
-  }
-  .tree .leaf:hover { background: var(--bg-3); color: var(--text); }
-  .tree .leaf.active { color: var(--text); border-left-color: var(--accent); background: var(--bg-3); }
-
-  .search-input {
-    width: 100%;
-    padding: 7px 10px;
-    background: var(--bg-3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font: inherit;
-    font-size: 13px;
-  }
-  .search-input:focus { outline: none; border-color: var(--accent); }
-
-  main.content {
-    overflow-y: auto;
-    padding: 24px 32px 80px;
-  }
-  .breadcrumbs {
-    color: var(--muted);
-    font-size: 12px;
-    margin-bottom: 14px;
-    display: flex; gap: 8px; align-items: center;
-  }
-  .breadcrumbs a { color: var(--accent); text-decoration: none; cursor: pointer; }
-  .breadcrumbs a:hover { text-decoration: underline; }
-
-  /* Index card grid */
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 14px;
-  }
-  .card {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.15s;
-    position: relative;
-  }
-  .card:hover { border-color: var(--accent); transform: translateY(-1px); }
-  .card .card-type {
-    display: inline-block;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 2px 7px;
-    border-radius: 4px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-  .card h2 {
-    margin: 0 0 6px;
-    font-size: 15px;
-    line-height: 1.35;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-  }
-  .card p.summary {
-    margin: 0 0 10px;
-    color: var(--muted);
-    font-size: 12.5px;
-    line-height: 1.5;
-  }
-  .card .meta {
-    display: flex; gap: 10px; flex-wrap: wrap;
-    color: var(--muted); font-size: 11px;
-  }
-  .card .meta .path { font-family: ui-monospace, SFMono-Regular, monospace; }
-  .card .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
-  .card .tag {
-    font-size: 10.5px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: var(--bg-3);
-    color: var(--muted);
-  }
-  .card .link-count {
-    position: absolute;
-    top: 12px; right: 14px;
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .card .link-count b { color: var(--accent); }
-
-  /* Type colors */
-  .t-daily        { background: rgba(63,185,80,0.18);  color: var(--green); }
-  .t-meeting      { background: rgba(210,153,34,0.18); color: var(--orange); }
-  .t-project      { background: rgba(210,168,255,0.18); color: var(--accent-2); }
-  .t-decision     { background: rgba(248,81,73,0.18);  color: var(--red); }
-  .t-intelligence { background: rgba(57,197,207,0.18); color: var(--teal); }
-
-  /* Entry detail */
-  .entry-detail {
-    max-width: 900px;
-    display: grid;
-    grid-template-columns: 1fr 260px;
-    gap: 32px;
-    align-items: start;
-  }
-  .entry-body { min-width: 0; }
-  .entry-meta {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    font-size: 12.5px;
-    position: sticky; top: 0;
-  }
-  .entry-meta h4 {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 14px 0 6px;
-    font-weight: 600;
-  }
-  .entry-meta h4:first-child { margin-top: 0; }
-  .entry-meta dl { margin: 0; }
-  .entry-meta dt { color: var(--muted); font-size: 11px; }
-  .entry-meta dd { margin: 0 0 8px; word-break: break-word; }
-  .entry-meta dd.path { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; }
-  .entry-meta ul { list-style: none; margin: 0; padding: 0; }
-  .entry-meta li { margin: 4px 0; }
-  .entry-meta li a {
-    color: var(--text);
-    text-decoration: none;
-    display: block;
-    padding: 5px 7px;
-    border-radius: 4px;
-    border-left: 2px solid var(--accent);
-    background: var(--bg-3);
-    font-size: 12px;
-    line-height: 1.35;
-  }
-  .entry-meta li a:hover { background: var(--border); }
-  .entry-meta li a .ltype {
-    display: block;
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 2px;
-  }
-
-  .entry-body h1 {
-    font-size: 26px;
-    margin: 0 0 8px;
-    line-height: 1.2;
-    letter-spacing: -0.015em;
-  }
-  .entry-body h2 {
-    font-size: 18px;
-    margin: 26px 0 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid var(--border);
-  }
-  .entry-body h3 { font-size: 15px; margin: 20px 0 6px; }
-  .entry-body p, .entry-body ul, .entry-body ol { margin: 0 0 12px; }
-  .entry-body ul, .entry-body ol { padding-left: 24px; }
-  .entry-body li { margin: 4px 0; }
-  .entry-body code {
-    background: var(--bg-3);
-    padding: 1.5px 5px;
-    border-radius: 3px;
-    font-size: 90%;
-    font-family: ui-monospace, SFMono-Regular, monospace;
-  }
-  .entry-body table {
-    border-collapse: collapse;
-    margin: 12px 0;
-    font-size: 13px;
-    width: 100%;
-  }
-  .entry-body th, .entry-body td {
-    border: 1px solid var(--border);
-    padding: 5px 10px;
-    text-align: left;
-  }
-  .entry-body th { background: var(--bg-3); font-weight: 600; }
-  .entry-body td.num, .entry-body th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .entry-body a { color: var(--accent); text-decoration: none; }
-  .entry-body a:hover { text-decoration: underline; }
-  .entry-body a.wikilink {
-    color: var(--accent-2);
-    background: rgba(210,168,255,0.10);
-    padding: 0 4px;
-    border-radius: 3px;
-  }
-  .entry-body a.wikilink.broken {
-    color: var(--muted);
-    background: transparent;
-    border-bottom: 1px dotted var(--muted);
-    cursor: not-allowed;
-  }
-  .entry-body hr {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 22px 0;
-  }
-  .entry-body blockquote {
-    border-left: 3px solid var(--border);
-    margin: 12px 0;
-    padding: 4px 14px;
-    color: var(--muted);
-  }
-
-  .sensitivity-badge {
-    display: inline-block;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-    margin-left: 8px;
-    vertical-align: middle;
-  }
-  .s-operational { background: var(--bg-3); color: var(--muted); }
-  .s-project     { background: rgba(210,168,255,0.18); color: var(--accent-2); }
-  .s-strategic   { background: rgba(57,197,207,0.18); color: var(--teal); }
-  .s-private     { background: rgba(248,81,73,0.22); color: var(--red); }
-
-  .empty {
-    color: var(--muted);
-    text-align: center;
-    padding: 60px 20px;
-    font-size: 14px;
-  }
-
-  /* Mini graph */
-  .graph-section {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 18px;
-    margin-bottom: 22px;
-  }
-  .graph-section h3 {
-    margin: 0 0 10px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-  }
-  .graph-section p {
-    margin: 0 0 8px;
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-  svg.graph { width: 100%; height: 380px; display: block; }
-  svg.graph .node circle {
-    cursor: pointer;
-    stroke-width: 1.5;
-    transition: r 0.15s;
-  }
-  svg.graph .node:hover circle { stroke: var(--accent); stroke-width: 2.5; }
-  svg.graph .node text {
-    fill: var(--text);
-    font-size: 10.5px;
-    pointer-events: none;
-  }
-  svg.graph line.edge {
-    stroke: var(--border);
-    stroke-width: 1;
-  }
-
-  details.helpbox {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 18px;
-    font-size: 13px;
-  }
-  details.helpbox summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--text);
-  }
-  details.helpbox p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-  details.helpbox kbd {
-    background: var(--bg-3);
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 11.5px;
-    font-family: ui-monospace, monospace;
-  }
-
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 220px 1fr; }
-    aside.sidebar { padding: 12px 10px 60px; }
-    main.content { padding: 18px 18px 60px; }
-    .entry-detail { grid-template-columns: 1fr; }
-    .entry-meta { position: static; }
-    header.topbar { flex-wrap: wrap; gap: 8px 16px; padding: 10px 14px; }
-    header.topbar .subtitle { width: 100%; order: 3; }
-    header.topbar .stats { margin-left: 0; }
-    .grid { grid-template-columns: 1fr; }
-    svg.graph { height: 320px; }
-  }
-</style>
-</head>
-<body>
-
-<header class="topbar">
-  <h1>Knowledge Base · Indian Head Casino</h1>
-  <span class="subtitle">demo for management — view what entries look like, and how they connect</span>
-  <div class="stats">
-    <div><b id="stat-entries">—</b> entries</div>
-    <div><b id="stat-types">—</b> types</div>
-    <div><b id="stat-tags">—</b> tags</div>
-    <div><b id="stat-links">—</b> links</div>
-  </div>
-</header>
-
-<div class="layout">
-  <aside class="sidebar">
-    <input id="search" class="search-input" type="search" placeholder="Search titles, content, tags…" />
-    <h3>Content type</h3>
-    <div id="filter-types" class="filter-row"></div>
-    <h3>Folders (logical path)</h3>
-    <div id="tree" class="tree"></div>
-    <h3>Top tags</h3>
-    <div id="filter-tags" class="filter-row"></div>
-  </aside>
-
-  <main class="content" id="main">
-    <!-- rendered by JS -->
-  </main>
-</div>
-
-<script type="application/json" id="kb-data">{"entries": [{"id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "org_id": "org_demo", "title": "Daily Notes — 2026-05-15", "content": "## Notes\n\n- Q3 OKR prep kickoff today — see [[2026-05-15-Q3-OKR-Prep]].\n\n- Received call from gaming commission regarding cage shortages; they plan to audit IHC cage policies and procedures. See [[2026-05-15-cage-audit-concern]].\n- Set up meeting with cage manager to discuss shortages — job search opened in [[2026-05-15-cage-manager-search]].\n- Need to meet with GM to discuss commission audit concerns.\n- Call F&B about private dining room for Mr. Holman (May 23, 8 covers, birthday). Hold flagged in [[2026-05-12-shift-report]]; pricing being drafted in [[pdr-package-draft]].", "summary": "Daily notes for 2026-05-15 — gaming commission audit concern, cage manager meeting, GM briefing needed.", "content_type": "daily", "logical_path": "Daily/2026-05-15", "sensitivity": "operational", "department": null, "owner_id": "usr_xr_admin", "tags": ["daily", "cage", "gaming-commission", "audit"], "domain_meta": {}, "version": 4, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-15T20:59:55.329229Z", "updated_at": "2026-05-25T14:09:36.915061Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "org_id": "org_demo", "title": "Daily Note — Q3 OKR Prep", "content": "Time to prep for third quarter OKRs.\n\n## Cross-cutting inputs to fold in\n- Compliance overhang from [[2026-05-15-cage-audit-concern]] (and the open [[2026-05-15-cage-manager-search]]) — may pull a leadership cycle off OKR work.\n- Marketing summer push: [[2026-headliner-concert]] and [[summer-programming]] both land in the OKR window.\n- Freeplay rebuild [[2026-mid-week]] launches mid-quarter; targeting hypothesis from [[wednesday-vs-tuesday-pattern]] is the measurable.\n- Today's standing notes: [[2026-05-15]].", "summary": "Daily note flagging the start of Q3 OKR preparation.", "content_type": "daily", "logical_path": "Daily/2026-05-15-Q3-OKR-Prep", "sensitivity": "shared", "department": null, "owner_id": "usr_5074d425251616df", "tags": ["daily-note", "okr", "planning", "q3"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_5074d425251616df", "updated_by": "usr_xr_admin", "created_at": "2026-05-15T21:45:15.103682Z", "updated_at": "2026-05-25T14:09:36.683503Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "org_id": "org_demo", "title": "2024 Cage Cash-Handling Incident — Post-Mortem", "content": "## What happened\nOn 2024-09-14 the main cage logged a $42K variance during graveyard shift. Root cause: a fill slip was double-credited because the supervisor on duty approved the manual override without the second-signature step required by internal control SOP 4.2.\n\n## Corrective actions\n- Two-signature requirement enforced in cage software (no manual override path).\n- Quarterly retraining for all cage supervisors on SOP 4.2.\n- Variance threshold alerting moved from $25K to $10K.\n\n## Sign-offs\n- VP Casino Ops: J. Reilly, 2024-09-22\n- Compliance: M. Park, 2024-09-23\n- President: M. Alvarez, 2024-09-25\n\n## Precedent value\nCited whenever cash-handling policy is reopened — see 2026 review of high-limit cage staffing for current application. Currently active reference: [[2026-05-15-cage-audit-concern]] and [[2026-05-15-cage-manager-search]].", "summary": "Cage variance event in Q3 2024; corrective actions and sign-offs.", "content_type": "decision", "logical_path": "Decisions/2024/cage-ops-incident", "sensitivity": "shared", "department": "casino-operations", "owner_id": "usr_xr_admin", "tags": ["cage-ops", "incident", "cash-handling", "post-mortem"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:09.890892Z", "updated_at": "2026-05-25T14:08:39.533734Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "790fca2f-a02f-4df2-bed1-a48414ff10d0", "org_id": "org_demo", "title": "Fight Night — July 2025 (Promotion Record)", "content": "## Concept\nHeadliner boxing card on Saturday night with bundled hotel/F&B package and tournament-style slot promo all weekend.\n\n## Original brief\nTarget: top-2-tier loyalty + comp lift on table drop. Budget: $480K marketing, $220K talent. Headliner: M. Rojas vs. D. Tate (welterweight).\n\n## Results\n- Hotel occupancy Fri–Sun: 98 / 100 / 92 (forecast 90 / 95 / 80).\n- Slot coin-in +37% vs. comparable July weekend; high-denom +52%.\n- F&B covers: 3,420 weekend (forecast 2,800). Steakhouse +41%.\n- Theoretical win lift attributed to promo: ~$2.1M.\n\n## After-action review\nWins: hotel/F&B bundle drove longer stays; tournament promo pulled new players to high-denom floor. Losses: undersold Friday night (single-night packages weren't available); merch revenue 30% under plan because POS wasn't ready. Recommendation for 2026: split-night packages, pre-event merch online sales, consider second-tier undercard to extend Sunday. Carried into [[summer-programming]].", "summary": "July 2025 fight-night weekend: brief, slot performance, F&B covers, AAR.", "content_type": "project", "logical_path": "Promotions/2025/fight-night-july", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["fight-night", "summer-programming", "headliner", "executed"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:10.194783Z", "updated_at": "2026-05-25T14:08:39.296466Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "org_id": "org_demo", "title": "2026 Summer Programming — Revised Fight-Night Format", "content": "## The call\nRun fight-night weekend July 2026 with a *revised* format: split-night hotel packages, second-tier Sunday undercard, pre-event merch online window, headliner negotiation capped at $250K talent budget.\n\n## Reasoning\n2025 record ([[fight-night-july]]) showed strong weekend lift but undersold Friday and missed merch revenue. The fixes target both losses directly without changing the headliner economics, which were the validated wins.\n\n## Dissent\nVP Marketing argued for a different headliner caliber (a name with broader draw outside the boxing audience), citing softer national TV interest in the welterweight division. Held at the table; revisit in March if talent market moves.\n\nAdjacent summer marketing push: [[2026-headliner-concert]].\n\n## Success criteria\n- Friday occupancy ≥ 95 (vs. 98 Sat).\n- Merch revenue ≥ $180K (2025 actual: $128K against $180K plan).\n- Theoretical win lift ≥ $2.0M (2025: $2.1M).\n- No talent-cost variance > 10% against $250K cap.", "summary": "Commit to revised fight-night format for July 2026; rationale, dissent, success criteria.", "content_type": "decision", "logical_path": "Decisions/2026/summer-programming", "sensitivity": "shared", "department": "leadership", "owner_id": "usr_xr_admin", "tags": ["fight-night", "summer-programming", "decisions"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:10.424022Z", "updated_at": "2026-05-25T14:08:39.069297Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "170d1eda-9fd9-4160-89c2-2787981bca62", "org_id": "org_demo", "title": "Guest Complaint Escalation — Playbook", "content": "## Tier 1 — Frontline\nServer, dealer, front desk agent owns first-touch recovery. Authority to comp up to $50 F&B / $0 room without manager approval (steakhouse detail: [[comp-policy]]). Log every comp in the property comp tracker with reason code.\n\n## Tier 2 — Manager on Duty (MOD)\nEscalate when: guest requests a manager, comp ask > tier-1 limit, allegation involves staff conduct, or VIP loyalty tier. MOD authority: $250 F&B / 1 night room. MOD must log a daily-note entry by end of shift.\n\n## Tier 3 — Director / VP\nEscalate when: legal/regulatory implication (ADA, gaming), media risk, comp ask > tier-2, or repeat complaint from same guest within 30 days. Page the Director of Guest Services via the on-call rotation.\n\n## Pattern to watch\nIf you find yourself reading this playbook more than twice in a week, that's a signal — log it to the operations daily note so leadership can see the trend.", "summary": "When and how to escalate guest complaints; comp thresholds, MOD pager flow.", "content_type": "resource", "logical_path": "Resources/guest-complaint-escalation", "sensitivity": "operational", "department": "operations", "owner_id": "usr_xr_admin", "tags": ["guest-complaint", "escalation", "operations", "service-recovery"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:10.646048Z", "updated_at": "2026-05-25T14:08:38.844961Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "org_id": "org_demo", "title": "Kill Decision — Tuesday Senior Promo (Q2 2025)", "content": "## The call\nDiscontinue the Tuesday senior promo after the Q1 2025 cycle.\n\n## Reasoning\nFloor data showed the promo was cannibalizing Wednesday senior visits (historically the stronger day) rather than incremental. Theoretical win on Tuesdays rose modestly but Wednesday dropped more than the Tuesday gain. Net theoretical: -$18K/week on a $32K/week promo spend.\n\n## Why we're writing it down\nEvery six months somebody asks why we killed the Tuesday promo. The answer is here. If conditions change (Wednesday softening on its own), revisit — but start from this baseline, not from scratch. Competitive watchpoint: [[senior-day-offers]]. Adjacent Tuesday/Wednesday analysis: [[wednesday-vs-tuesday-pattern]].", "summary": "Discontinue the Tuesday senior promo. Reasoning preserved so the question doesn't resurface unanswered.", "content_type": "decision", "logical_path": "Decisions/2025/tuesday-senior-promo-kill", "sensitivity": "operational", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["senior-promo", "promotions", "killed"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:10.867263Z", "updated_at": "2026-05-25T14:08:38.619241Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "606f0acf-843e-47e0-91c1-039117e23ba1", "org_id": "org_demo", "title": "Maria — Daily Note 2026-05-13", "content": "## Decided today\n- Committed to revised fight-night format for July (see [[summer-programming]]; 2025 record [[fight-night-july]]).\n- Approved two HR hires in F&B (steakhouse line cook, bar back).\n\n## Worried about\n- Operations team is reading the [[guest-complaint-escalation]] guide 3x/day for   two weeks running. Something is happening on the floor — scheduled COO   follow-up Thursday.\n- 14% wine vendor price increase pending at steakhouse ([[wine-program-cab-change]]); Sam will decide this   week.\n\n## Pickup tomorrow\n- Read the cage-ops 2024 post-mortem ([[cage-ops-incident]]) before the cash-handling review meeting.\n- Confirm undercard direction with VP Marketing before contract goes out.", "summary": "End-of-day note: decisions, worries, pickups for tomorrow.", "content_type": "daily", "logical_path": "Daily/maria/2026-05-13", "sensitivity": "private", "department": "leadership", "owner_id": "usr_xr_admin", "tags": ["daily-note", "leadership"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:11.091538Z", "updated_at": "2026-05-25T14:08:38.392050Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "org_id": "org_demo", "title": "Agency Weekly Check-In — 2026-05-11", "content": "## Attendees\nDevon Park (Marketing), J. Chen (agency lead), R. Patel (agency creative), promotions analyst.\n\n## Decisions\n- Approve mid-week freeplay creative v3 for the Tuesday flight (not Wednesday —   see [[wednesday-vs-tuesday-pattern]]). Flight detail: [[2026-mid-week]].\n- Hold senior-day paid social pending Q2 budget rebalance.\n\n## Action items\n- J. Chen: ship Tuesday freeplay creative by 2026-05-15.\n- R. Patel: draft headliner-concert hero treatment, 3 options, by 2026-05-18 (brief: [[2026-headliner-concert]]).\n- Promotions analyst: pull weekend slot tournament underperformance write-up.\n\n## Notes\nAgency floated a Wednesday freeplay variant. Held — see [[wednesday-vs-tuesday-pattern]]: every Wednesday proposal in three years has come from a vendor pitch.", "summary": "Decisions and action items from weekly agency call. Transcript stored as attachment.", "content_type": "meeting", "logical_path": "Meetings/marketing/2026-05-11-agency-checkin", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["agency", "marketing", "weekly-checkin"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:11.317643Z", "updated_at": "2026-05-25T14:08:38.131964Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "org_id": "org_demo", "title": "Freeplay — Wednesday vs. Tuesday Pattern", "content": "## The pattern\nAcross 2024, 2025, and 2026 mid-week freeplay programs ([[2024-mid-week]], [[2025-mid-week]], [[2026-mid-week]]), the Wednesday flights have underperformed the Tuesday flights on every primary KPI (theoretical win lift, redemption rate, new-player capture).\n\n## Why this isn't a coincidence\nEvery Wednesday proposal traces back to a vendor pitch — usually the same two ad-tech vendors arguing mid-week dayparts are 'underbid.' They aren't underbid for *our* property: our Tuesday loyalty calendar is the anchor, and Wednesday cannibalizes it.\n\n## Implication\nDefault to Tuesday flights. Wednesday only on explicit hypothesis (e.g. a new headliner mid-week event creating natural traffic) — not on a vendor pitch alone. Reopen this note if the Tuesday anchor changes. Adjacent senior-day kill applying the same logic: [[tuesday-senior-promo-kill]]. Competitive pressure on Wednesday: [[senior-day-offers]].", "summary": "Three years of mid-week freeplay programs: Wednesday underperforms Tuesday, every time.", "content_type": "context", "logical_path": "Strategy/freeplay/wednesday-vs-tuesday-pattern", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["freeplay", "mid-week", "strategy", "pattern"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:11.539998Z", "updated_at": "2026-05-25T14:08:37.907621Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "org_id": "org_demo", "title": "Mid-Week Freeplay — 2024 Program", "content": "Tuesday flight (lead): $25 freeplay to top-3-tier loyalty, every Tuesday in Feb-May. Redemption 62%, theoretical win lift $1.4M.\n\nWednesday variant (pitched by ad-tech vendor): same offer, Wednesdays. Redemption 41%, theoretical win lift $0.6M, plus -$0.3M cannibalization from Tuesday. Killed after April.\n\nPost-mortem: vendor model didn't account for our Tuesday loyalty anchor. Pattern carried forward in [[wednesday-vs-tuesday-pattern]]; superseded by [[2025-mid-week]] and [[2026-mid-week]].", "summary": "2024 mid-week freeplay: Tuesday flight vs. Wednesday flight.", "content_type": "project", "logical_path": "Promotions/freeplay/2024-mid-week", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["freeplay", "mid-week", "executed", "2024"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:11.769996Z", "updated_at": "2026-05-25T14:08:37.680940Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "93764bdf-d08a-40d7-b012-f487361c6467", "org_id": "org_demo", "title": "Mid-Week Freeplay — 2025 Program", "content": "Tuesday-only Feb-April: redemption 64%, theoretical win lift $1.6M.\n\nMarch Wednesday A/B test (run because a new agency lead wanted to revisit the question): redemption 38%, no measurable Tuesday lift. Same vendor-pitch origin as [[2024-mid-week]] Wednesday variant. Pattern write-up: [[wednesday-vs-tuesday-pattern]]. Killed at end of March.", "summary": "2025 mid-week freeplay: Tuesday lead with a March Wednesday test.", "content_type": "project", "logical_path": "Promotions/freeplay/2025-mid-week", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["freeplay", "mid-week", "executed", "2025"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:11.993259Z", "updated_at": "2026-05-25T14:08:37.388097Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "d82195e1-ac54-461c-b679-61115fa37baf", "org_id": "org_demo", "title": "Mid-Week Freeplay — 2026 Program (Rebuild)", "content": "Tuesday-only by default (see [[wednesday-vs-tuesday-pattern]]; prior cycle [[2025-mid-week]]). Offer amount dynamic: $15 / $25 / $40 freeplay tiered to 90-day theoretical rather than static loyalty tier. Hypothesis: tighter targeting improves redemption-to-lift ratio. Launch: 2026-06-04.", "summary": "2026 rebuild: Tuesday anchor, dynamic offer amount tied to recent play.", "content_type": "project", "logical_path": "Promotions/freeplay/2026-mid-week", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["freeplay", "mid-week", "in-progress", "2026"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:12.219326Z", "updated_at": "2026-05-25T14:08:37.159619Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "org_id": "org_demo", "title": "Creative Brief — Summer 2026 Headliner Concert", "content": "## Campaign\nAugust 2026 headliner concert (artist confidential until announce date). Hero-treatment review tracked in [[2026-05-11-agency-checkin]]. Adjacent summer programming: [[summer-programming]].\n\n## Audience\nPrimary: 35-55 entertainment-leaning loyalty members within 200mi. Secondary: regional drive-market non-members for hotel/F&B bundle.\n\n## Hero message\n'A weekend, not just a show' — hotel/F&B bundle anchors the offer, concert is the headline.\n\n## Channels\nEmail + push (loyalty), regional paid social, OOH within 100mi, partnership with regional ticket partner for non-member traffic.\n\n## Success criteria\n- Bundle attach rate ≥ 35% of ticket sales.\n- Hotel occupancy concert weekend ≥ 96.\n- New loyalty enrollments ≥ 1,200 over campaign window.", "summary": "Creative brief for the August 2026 headliner concert. Promoted from Devon's personal zone.", "content_type": "project", "logical_path": "Marketing/briefs/2026-headliner-concert", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["creative-brief", "headliner", "summer-programming"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:12.441957Z", "updated_at": "2026-05-25T14:08:36.934289Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38", "org_id": "org_demo", "title": "Across-The-River Property — Senior-Day Offers", "content": "## Observed program\nWednesday senior days: $30 freeplay + $10 F&B credit for 55+ loyalty members. No tier gate. Bus partnerships with two regional senior centers.\n\n## Observed traffic\nThree Wednesdays sampled in March 2026: full bus arrivals 9–11am, F&B credit redemption ~70% (high), freeplay redemption visible at low-denom carousel.\n\n## Our implication\nWe killed our Tuesday senior promo (see [[tuesday-senior-promo-kill]]) because Wednesday is our anchor. New property is targeting our Wednesday strength explicitly. Recommend: track Wednesday senior visits monthly for 6 months; revisit Tuesday kill decision if Wednesday softens > 8% YoY.", "summary": "New property's senior-day program: structure, comp terms, observed traffic.", "content_type": "intelligence", "logical_path": "Competitive/across-the-river/senior-day-offers", "sensitivity": "shared", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["competitive-intel", "across-the-river", "senior-day"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:12.665673Z", "updated_at": "2026-05-25T14:08:36.697141Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "3188e870-13be-48c8-89e1-6e59ff58d981", "org_id": "org_demo", "title": "Marketing Team — Daily Summary 2026-05-13", "content": "- Loyalty coordinator: finished senior-day creative v3, queued for QA. Competitive context: [[senior-day-offers]]; prior kill decision: [[tuesday-senior-promo-kill]].\n- Promotions analyst: flagged weekend slot tournament underperformance   (-22% vs. forecast); pulling root-cause draft for Friday.\n- Digital lead: pushed two paid-search variants live, A/B running.\n- Events manager: closed catering contract for headliner-concert weekend. Brief: [[2026-headliner-concert]].\n- Brand designer: hero-treatment options for headliner due to Devon 2026-05-18 (per [[2026-05-11-agency-checkin]]).", "summary": "Marketing team activity rollup before Devon's 9:15 huddle.", "content_type": "daily", "logical_path": "Daily/marketing/2026-05-13-team-summary", "sensitivity": "private", "department": "marketing", "owner_id": "usr_xr_admin", "tags": ["daily-summary", "marketing", "team"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:12.887693Z", "updated_at": "2026-05-25T14:08:36.468349Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "5c3d3c71-0d42-41de-820e-9161f0e53190", "org_id": "org_demo", "title": "Steakhouse — Wine List & Tasting Notes", "content": "## By the glass\n- House cab (Napa, current selection — see [[wine-program-cab-change]]): bold,   blackcurrant, soft tannin. Pairs ribeye, NY strip.\n- Pinot noir (Willamette): cherry, earth. Pairs duck breast, salmon.\n- Chardonnay (Sonoma): oaked, butter, citrus finish. Pairs scallops, chicken.\n- Sauvignon blanc (Marlborough): grass, grapefruit. Pairs raw bar, salads.\n\n## By the bottle (selected)\nFull list in POS. Mark BIN# on every order. If a guest asks for something off-list, page the sommelier (ext. 4421) — do not free-pour and don't promise anything.", "summary": "Current wine list with tasting notes and pour-cost reference.", "content_type": "onboarding", "logical_path": "Steakhouse/onboarding/wine-list", "sensitivity": "shared", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "onboarding", "wine-program"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:13.331495Z", "updated_at": "2026-05-25T14:08:36.244822Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "54f0836c-8af9-4d61-8173-17dc2ef8c802", "org_id": "org_demo", "title": "Steakhouse — Allergen Protocols", "content": "## Front of house\nAlways ask: 'any allergies or restrictions at the table?' before reading specials (step 2 of [[steps-of-service]]). Flag allergies on the POS ticket using the allergen code (NUT, DAIRY, GLUTEN, SHELLFISH, SOY, EGG). Never rely on memory alone — write it.\n\n## Kitchen\nAllergen tickets print on red ticket paper. Separate cutting board, separate tongs, separate plating station for any allergen-flagged dish. Chef on duty must initial the ticket before it leaves the pass.\n\n## If a guest reacts at the table\nCall manager immediately. Do not move the guest. Do not let them refuse EMS without manager present. Log incident before end of shift.", "summary": "Allergen flagging rules and kitchen protocol.", "content_type": "onboarding", "logical_path": "Steakhouse/onboarding/allergen-protocols", "sensitivity": "shared", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "onboarding", "allergens", "safety"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:13.552035Z", "updated_at": "2026-05-25T14:08:36.012692Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b", "org_id": "org_demo", "title": "Steakhouse — Comp Policy", "content": "## Authority\n- Server: comp single item up to $50 for an in-the-moment recovery   (cold steak, slow service > 20min). Manager-flag required for anything else.\n- Manager: up to $250 per check, or a full check up to $500.\n- GM: above that.\n\n## Logging\nEvery comp gets a reason code in POS AND a free-text reason. Free-text is what the AAR reads — 'comp $80 ribeye, cold center, re-fired and remade, guest left satisfied' is useful; 'service issue' is not.\n\n## Repeat-guest rule\nIf you comp the same guest in two consecutive visits, flag the manager — may need to escalate to Guest Services per the escalation playbook ([[guest-complaint-escalation]]).", "summary": "Server, manager, GM comp authority and required logging.", "content_type": "onboarding", "logical_path": "Steakhouse/onboarding/comp-policy", "sensitivity": "shared", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "onboarding", "comp-policy"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:13.773164Z", "updated_at": "2026-05-25T14:08:35.784969Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "b6443414-396c-4a2f-9287-65879c775eb4", "org_id": "org_demo", "title": "Steakhouse — Steps of Service", "content": "1. **Greet within 90 seconds.** Water + bread. Acknowledge by name if VIP    loyalty.\n2. **Ask:** allergens first, then drinks (allergen ticket flow in [[allergen-protocols]]). Specials after drinks ordered.\n3. **Fire course 1.** Salads/apps drop within 8 min.\n4. **Two-bite check-back** on every course.\n5. **Mid-course pre-bus.** Clear apps, reset silver for entrée.\n6. **Entrée drop with temp check.** Cut into steak in front of guest if    requested; offer fresh pepper / steak knife replacement.\n7. **Dessert/digestif offer** within 5 min of clearing entrée.\n8. **Close:** thank by name, walk to door if VIP, write down any reservation    ask before leaving the floor.\n\nComp authority during recovery: see [[comp-policy]]. Section/table numbering: [[floor-map]].", "summary": "Greet, ask, fire, drop, check-back, pre-bus, close.", "content_type": "onboarding", "logical_path": "Steakhouse/onboarding/steps-of-service", "sensitivity": "shared", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "onboarding", "steps-of-service"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:13.997436Z", "updated_at": "2026-05-25T14:08:35.560282Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "ed5de8d4-c257-420e-abd9-a8837e0db451", "org_id": "org_demo", "title": "Wine Program — House Cab Change (May 2026)", "content": "## The call\nReplace current house cab (vendor A, $42/btl cost) with new selection (vendor B, $48/btl cost). Effective 2026-06-01.\n\n## Pros\n- Sommelier and GM both prefer the new bottle on blind comparison.\n- Pairs better with our top three ribeye preparations (per chef de cuisine).\n- Vendor B's portfolio gives us upgrade options on the BTG mid-tier later.\n\n## Cons\n- 14% cost increase on highest-volume BTG SKU.\n- Retail price increase $14 → $16 needed to hold pour cost — risk of guest   pushback at the $16 break.\n\n## Projected GP impact\nAt current weekly volume (~310 pours) and a $16 price point holding pour cost at 28%: weekly GP delta -$140 vs. prior bottle (flat-to-slightly-down) with quality upside. Acceptable trade.\n\n## Comparable being displaced\nVendor A house cab, in program since 2024-Q3. Floor reference for BTG lineup: [[wine-list]].", "summary": "Replace house cab with new selection at +14% cost. Pros, cons, projected GP impact.", "content_type": "decision", "logical_path": "Decisions/steakhouse/wine-program-cab-change", "sensitivity": "operational", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["wine-program", "vendor-change", "vendor", "steakhouse"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:14.236604Z", "updated_at": "2026-05-25T14:08:35.330507Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "org_id": "org_demo", "title": "Steakhouse — Shift Report 2026-05-12", "content": "## Service summary\nCovers: 142 (forecast 130). PDR: 1 party of 12.\n\n## Top sellers\nBone-in ribeye (28), filet 8oz (24), seafood tower for two (6).\n\n## Notes\n- Sous chef J. Marrero called out, line covered by chef de cuisine on   saute; finishing times held.\n- Table B-24 guest complaint: steak temp medium-well returned twice. Comped   ($72) and re-fired as filet at no charge. Guest left satisfied. Comp within server authority per [[comp-policy]].\n- Regular (M. Holman, top-tier loyalty): asking for May 23 PDR for 8 covers,   birthday. Hold and follow up. Pricing draft in [[pdr-package-draft]].\n\n## Carry forward\nSalamander still on secondary-only (see [[salamander-outage-2026-05-09]]). Wine cab decision promoting to team-shared Friday — see [[wine-program-cab-change]].", "summary": "Tuesday service notes: covers, top sellers, comps, callout, regulars.", "content_type": "daily", "logical_path": "Daily/steakhouse/2026-05-12-shift-report", "sensitivity": "private", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "shift-report", "daily-note"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:14.681308Z", "updated_at": "2026-05-25T14:08:35.107390Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "34f4008a-840d-42ac-9279-a108d436a2a2", "org_id": "org_demo", "title": "PDR Package Pricing — Draft", "content": "Working draft of new private dining package pricing. Not for general consumption yet. PDR layout in [[floor-map]]. Active PDR request from M. Holman tracked in [[2026-05-12-shift-report]] and [[2026-05-15]].\n", "summary": null, "content_type": "decision", "logical_path": "Decisions/steakhouse/pdr-package-draft", "sensitivity": "shared", "department": null, "owner_id": "usr_02d73e61286609c4", "tags": ["pricing", "draft"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_02d73e61286609c4", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T22:43:14.287882Z", "updated_at": "2026-05-25T14:08:34.883127Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "org_id": "org_demo", "title": "Gaming Commission Call — Cage Shortage Audit Concern", "content": "## Summary\n\nPhone call received from the gaming commission on 2026-05-15 regarding concerns about shortages in the casino cage. The commission has indicated they intend to conduct a formal audit of IHC's cage policies and procedures.\n\n## Key Points\n\n- **Issue raised:** Gaming commission expressed concern about cage shortages at Indian Head Casino.\n- **Commission action:** Intends to conduct an audit of cage policies and procedures.\n- **Internal action required:** GM meeting needed to discuss response strategy, audit readiness, and any immediate corrective steps.\n- **Related:** prior cage-handling history in [[cage-ops-incident]]; cage manager search opened in [[2026-05-15-cage-manager-search]].\n\n## Next Steps\n\n- [ ] Schedule meeting with GM to brief on the commission's concerns\n- [ ] Set up meeting with cage manager to discuss shortages\n- [ ] Review current cage policies and procedures for audit readiness\n- [ ] Identify any gaps or documentation deficiencies ahead of the audit\n- [ ] Prepare response/communication strategy for the gaming commission", "summary": "Gaming commission called on 2026-05-15 to flag cage shortage concerns and announced intent to audit IHC cage policies and procedures; GM meeting needed.", "content_type": "meeting", "logical_path": "Operations/Compliance/GamingCommission/2026-05-15-cage-audit-concern", "sensitivity": "operational", "department": null, "owner_id": "usr_xr_admin", "tags": ["gaming-commission", "cage", "audit", "compliance", "gm-action-required"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-15T20:51:58.071620Z", "updated_at": "2026-05-25T14:08:34.656891Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "org_id": "org_demo", "title": "Private — Cage Manager Job Search", "content": "Begin a job search for a new cage manager. Context: gaming commission raised concerns about cage shortages on 2026-05-15 — see [[2026-05-15-cage-audit-concern]]. Prior cage-ops history in [[cage-ops-incident]].", "summary": "Private note to initiate a job search for a new cage manager following gaming commission concerns about cage shortages.", "content_type": "decision", "logical_path": "Private/HR/2026-05-15-cage-manager-search", "sensitivity": "private", "department": null, "owner_id": "usr_xr_admin", "tags": ["private", "hr", "cage", "hiring"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-15T21:02:36.128193Z", "updated_at": "2026-05-25T14:08:34.430548Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "b8a453b9-18fd-45d7-bf30-716a0da6091c", "org_id": "org_demo", "title": "Steakhouse — Salamander Outage 2026-05-09", "content": "## What happened\nMain salamander unit (line 2) lost element mid-service 2026-05-09 ~19:40. Worked around using secondary salamander on line 1; finish times on rib roast and au gratin items stretched by ~4 minutes for the rest of service.\n\n## Guest impact\nTwo tables flagged slow entrées, both recovered with comp dessert. No comps > $25.\n\n## Resolution\nResolved 2026-05-11. Engineering ticket #ENG-4421 closed. Main salamander restored to full operation.", "summary": "Main salamander failed mid-service May 9; worked around with secondary. Resolved May 11, ticket #ENG-4421 closed.", "content_type": "daily", "logical_path": "Steakhouse/incidents/salamander-outage-2026-05-09", "sensitivity": "operational", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["equipment", "steakhouse", "kitchen", "resolved"], "domain_meta": {}, "version": 3, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:14.457683Z", "updated_at": "2026-05-15T21:16:12.260231Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}, {"id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80", "org_id": "org_demo", "title": "Steakhouse — Floor Map & Table Numbering", "content": "## Sections\nA (1-12): window line, 2-tops + 4-tops, server station 1.\nB (20-32): center booths, 4-tops + 6-tops, server station 2.\nC (40-48): banquette wall, 4-tops, server station 2.\nD (50-62): bar-side high-tops + chef's counter (6 seats), server station 3.\nPDR (P1): 14-cover private dining room — manager-led service.\n\n## Numbering rule\nTens digit = section, ones digit = position from front. Always say full table number on radio ('three-two' not 'thirty-two').", "summary": "Floor map, section breakdown, table numbering convention.", "content_type": "onboarding", "logical_path": "Steakhouse/onboarding/floor-map", "sensitivity": "shared", "department": "f-and-b", "owner_id": "usr_xr_admin", "tags": ["steakhouse", "onboarding", "floor-map"], "domain_meta": {}, "version": 2, "status": "published", "source": "web_ui", "created_by": "usr_xr_admin", "updated_by": "usr_xr_admin", "created_at": "2026-05-14T19:54:13.108785Z", "updated_at": "2026-05-14T19:54:13.108785Z", "claim_type": null, "source_confidence": null, "verification_status": null, "conflict_with": []}], "edges": [{"source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "via": "wikilink"}, {"source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "via": "wikilink"}, {"source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "target_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "via": "wikilink"}, {"source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "target_id": "34f4008a-840d-42ac-9279-a108d436a2a2", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "d82195e1-ac54-461c-b679-61115fa37baf", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29", "target_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "via": "wikilink"}, {"source_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "via": "wikilink"}, {"source_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "via": "wikilink"}, {"source_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0", "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "via": "wikilink"}, {"source_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "target_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0", "via": "wikilink"}, {"source_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "via": "wikilink"}, {"source_id": "170d1eda-9fd9-4160-89c2-2787981bca62", "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b", "via": "wikilink"}, {"source_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38", "via": "wikilink"}, {"source_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "606f0acf-843e-47e0-91c1-039117e23ba1", "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "via": "wikilink"}, {"source_id": "606f0acf-843e-47e0-91c1-039117e23ba1", "target_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0", "via": "wikilink"}, {"source_id": "606f0acf-843e-47e0-91c1-039117e23ba1", "target_id": "170d1eda-9fd9-4160-89c2-2787981bca62", "via": "wikilink"}, {"source_id": "606f0acf-843e-47e0-91c1-039117e23ba1", "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451", "via": "wikilink"}, {"source_id": "606f0acf-843e-47e0-91c1-039117e23ba1", "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "via": "wikilink"}, {"source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "target_id": "d82195e1-ac54-461c-b679-61115fa37baf", "via": "wikilink"}, {"source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "via": "wikilink"}, {"source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "target_id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "via": "wikilink"}, {"source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "target_id": "93764bdf-d08a-40d7-b012-f487361c6467", "via": "wikilink"}, {"source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "target_id": "d82195e1-ac54-461c-b679-61115fa37baf", "via": "wikilink"}, {"source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "via": "wikilink"}, {"source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38", "via": "wikilink"}, {"source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "target_id": "93764bdf-d08a-40d7-b012-f487361c6467", "via": "wikilink"}, {"source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "target_id": "d82195e1-ac54-461c-b679-61115fa37baf", "via": "wikilink"}, {"source_id": "93764bdf-d08a-40d7-b012-f487361c6467", "target_id": "ffe86926-4717-4745-aebb-d5000b4a28d9", "via": "wikilink"}, {"source_id": "93764bdf-d08a-40d7-b012-f487361c6467", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "d82195e1-ac54-461c-b679-61115fa37baf", "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3", "via": "wikilink"}, {"source_id": "d82195e1-ac54-461c-b679-61115fa37baf", "target_id": "93764bdf-d08a-40d7-b012-f487361c6467", "via": "wikilink"}, {"source_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "target_id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "via": "wikilink"}, {"source_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057", "via": "wikilink"}, {"source_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38", "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "via": "wikilink"}, {"source_id": "3188e870-13be-48c8-89e1-6e59ff58d981", "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38", "via": "wikilink"}, {"source_id": "3188e870-13be-48c8-89e1-6e59ff58d981", "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80", "via": "wikilink"}, {"source_id": "3188e870-13be-48c8-89e1-6e59ff58d981", "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8", "via": "wikilink"}, {"source_id": "3188e870-13be-48c8-89e1-6e59ff58d981", "target_id": "ba47141c-0504-4fda-aee6-c8fe52672d82", "via": "wikilink"}, {"source_id": "5c3d3c71-0d42-41de-820e-9161f0e53190", "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451", "via": "wikilink"}, {"source_id": "54f0836c-8af9-4d61-8173-17dc2ef8c802", "target_id": "b6443414-396c-4a2f-9287-65879c775eb4", "via": "wikilink"}, {"source_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b", "target_id": "170d1eda-9fd9-4160-89c2-2787981bca62", "via": "wikilink"}, {"source_id": "b6443414-396c-4a2f-9287-65879c775eb4", "target_id": "54f0836c-8af9-4d61-8173-17dc2ef8c802", "via": "wikilink"}, {"source_id": "b6443414-396c-4a2f-9287-65879c775eb4", "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b", "via": "wikilink"}, {"source_id": "b6443414-396c-4a2f-9287-65879c775eb4", "target_id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80", "via": "wikilink"}, {"source_id": "ed5de8d4-c257-420e-abd9-a8837e0db451", "target_id": "5c3d3c71-0d42-41de-820e-9161f0e53190", "via": "wikilink"}, {"source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b", "via": "wikilink"}, {"source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "target_id": "34f4008a-840d-42ac-9279-a108d436a2a2", "via": "wikilink"}, {"source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "target_id": "b8a453b9-18fd-45d7-bf30-716a0da6091c", "via": "wikilink"}, {"source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451", "via": "wikilink"}, {"source_id": "34f4008a-840d-42ac-9279-a108d436a2a2", "target_id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80", "via": "wikilink"}, {"source_id": "34f4008a-840d-42ac-9279-a108d436a2a2", "target_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1", "via": "wikilink"}, {"source_id": "34f4008a-840d-42ac-9279-a108d436a2a2", "target_id": "f4523fa7-fc86-4240-b331-2af75a441d5c", "via": "wikilink"}, {"source_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "via": "wikilink"}, {"source_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "via": "wikilink"}, {"source_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1", "via": "wikilink"}, {"source_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9", "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55", "via": "wikilink"}]}</script>
-<script>
-(function () {
-  "use strict";
-
-  const data = JSON.parse(document.getElementById("kb-data").textContent);
-  const entries = data.entries;
-  const edges = data.edges;
-
-  // Build lookups.
-  const byId = Object.fromEntries(entries.map(e => [e.id, e]));
-  const outgoing = {};
-  const incoming = {};
-  for (const e of entries) { outgoing[e.id] = []; incoming[e.id] = []; }
-  for (const edge of edges) {
-    outgoing[edge.source_id].push(edge);
-    incoming[edge.target_id].push(edge);
-  }
-
-  // Tag counts.
-  const tagCounts = {};
-  for (const e of entries) for (const t of (e.tags || [])) tagCounts[t] = (tagCounts[t] || 0) + 1;
-  // Type counts.
-  const typeCounts = {};
-  for (const e of entries) typeCounts[e.content_type] = (typeCounts[e.content_type] || 0) + 1;
-
-  // Render top stats.
-  document.getElementById("stat-entries").textContent = entries.length;
-  document.getElementById("stat-types").textContent = Object.keys(typeCounts).length;
-  document.getElementById("stat-tags").textContent = Object.keys(tagCounts).length;
-  document.getElementById("stat-links").textContent = edges.length;
-
-  // State.
-  const state = {
-    activeType: null,
-    activeTag: null,
-    activePath: null,
-    search: "",
-  };
-
-  // --- Filters UI ---
-  function renderTypeFilters() {
-    const root = document.getElementById("filter-types");
-    root.innerHTML = "";
-    const types = Object.keys(typeCounts).sort((a,b) => typeCounts[b]-typeCounts[a]);
-    for (const t of types) {
-      const el = document.createElement("span");
-      el.className = "chip" + (state.activeType === t ? " active" : "");
-      el.innerHTML = `${t}<span class="count">${typeCounts[t]}</span>`;
-      el.onclick = () => { state.activeType = state.activeType === t ? null : t; goIndex(); };
-      root.appendChild(el);
-    }
-  }
-  function renderTagFilters() {
-    const root = document.getElementById("filter-tags");
-    root.innerHTML = "";
-    const tags = Object.keys(tagCounts)
-      .filter(t => tagCounts[t] >= 2)
-      .sort((a,b) => tagCounts[b]-tagCounts[a]);
-    for (const t of tags) {
-      const el = document.createElement("span");
-      el.className = "chip" + (state.activeTag === t ? " active" : "");
-      el.innerHTML = `${t}<span class="count">${tagCounts[t]}</span>`;
-      el.onclick = () => { state.activeTag = state.activeTag === t ? null : t; goIndex(); };
-      root.appendChild(el);
-    }
-  }
-
-  // --- Folder tree ---
-  function buildTree() {
-    const root = { children: {}, entries: [] };
-    for (const e of entries) {
-      const parts = e.logical_path.split("/");
-      let node = root;
-      for (let i = 0; i < parts.length - 1; i++) {
-        const seg = parts[i];
-        if (!node.children[seg]) node.children[seg] = { children: {}, entries: [] };
-        node = node.children[seg];
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Knowledge Base — Arguss Labs · Demo</title>
+    <style>
+      :root {
+        --bg: #0e1117;
+        --bg-2: #161b22;
+        --bg-3: #1f242c;
+        --border: #2a313c;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --accent-2: #d2a8ff;
+        --green: #3fb950;
+        --orange: #d29922;
+        --red: #f85149;
+        --pink: #f778ba;
+        --teal: #39c5cf;
       }
-      node.entries.push(e);
-    }
-    return root;
-  }
-  function renderTree() {
-    const root = document.getElementById("tree");
-    root.innerHTML = "";
-    const tree = buildTree();
-    function render(node, path, container, level) {
-      const segs = Object.keys(node.children).sort();
-      for (const seg of segs) {
-        const child = node.children[seg];
-        const segPath = path ? path + "/" + seg : seg;
-        const count = countNode(child);
-        const details = document.createElement("details");
-        if (level === 0) details.open = true;
-        const summary = document.createElement("summary");
-        summary.innerHTML = `<span class="seg">${escapeHtml(seg)}<span class="count">${count}</span></span>`;
-        details.appendChild(summary);
-        const childContainer = document.createElement("div");
-        render(child, segPath, childContainer, level + 1);
-        details.appendChild(childContainer);
-        container.appendChild(details);
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --bg-2: #f6f8fa;
+          --bg-3: #eaeef2;
+          --border: #d0d7de;
+          --text: #1f2328;
+          --muted: #59636e;
+          --accent: #0969da;
+          --accent-2: #8250df;
+          --green: #1a7f37;
+          --orange: #9a6700;
+          --red: #cf222e;
+          --pink: #bf3989;
+          --teal: #1b7c83;
+        }
       }
-      // leaf entries at this level
-      for (const e of node.entries.sort((a,b) => a.title.localeCompare(b.title))) {
-        const a = document.createElement("a");
-        a.className = "leaf";
-        a.href = "#/entry/" + e.id;
-        a.textContent = e.title;
-        container.appendChild(a);
+      * {
+        box-sizing: border-box;
       }
-    }
-    function countNode(n) {
-      let c = n.entries.length;
-      for (const k of Object.keys(n.children)) c += countNode(n.children[k]);
-      return c;
-    }
-    render(tree, "", root, 0);
-  }
-
-  // --- Filtering ---
-  function applyFilters(list) {
-    return list.filter(e => {
-      if (state.activeType && e.content_type !== state.activeType) return false;
-      if (state.activeTag && !(e.tags || []).includes(state.activeTag)) return false;
-      if (state.search) {
-        const s = state.search.toLowerCase();
-        const hay = (e.title + " " + (e.summary || "") + " " + e.content + " " + (e.tags||[]).join(" ")).toLowerCase();
-        if (!hay.includes(s)) return false;
+      html,
+      body {
+        height: 100%;
       }
-      return true;
-    });
-  }
+      body {
+        margin: 0;
+        font:
+          14px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header.topbar {
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-2);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      header.topbar h1 {
+        font-size: 17px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      header.topbar .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      header.topbar .stats {
+        margin-left: auto;
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      header.topbar .stats b {
+        color: var(--text);
+        font-weight: 600;
+        font-size: 14px;
+      }
 
-  // --- Routing ---
-  function go() {
-    const hash = location.hash.replace(/^#\/?/, "");
-    if (hash.startsWith("entry/")) {
-      const id = hash.slice("entry/".length);
-      renderEntry(id);
-    } else {
-      renderIndex();
-    }
-    renderTypeFilters();
-    renderTagFilters();
-    renderTree();
-  }
-  function goIndex() { location.hash = "#/"; renderIndex(); renderTypeFilters(); renderTagFilters(); }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        height: calc(100vh - 53px);
+      }
+      aside.sidebar {
+        border-right: 1px solid var(--border);
+        background: var(--bg-2);
+        overflow-y: auto;
+        padding: 16px 14px 80px;
+      }
+      aside.sidebar h3 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 18px 0 8px;
+        font-weight: 600;
+      }
+      aside.sidebar h3:first-child {
+        margin-top: 0;
+      }
+      .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        font-size: 12px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--bg-3);
+        color: var(--text);
+        cursor: pointer;
+        user-select: none;
+      }
+      .chip:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .chip.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .chip .count {
+        color: var(--muted);
+        margin-left: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .chip.active .count {
+        color: rgba(255, 255, 255, 0.85);
+      }
 
-  // --- Index view ---
-  function renderIndex() {
-    const main = document.getElementById("main");
-    const list = applyFilters(entries);
-    list.sort((a,b) => b.updated_at.localeCompare(a.updated_at));
+      .tree {
+        font-size: 13px;
+      }
+      .tree details {
+        margin: 2px 0;
+      }
+      .tree summary {
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+        list-style: none;
+      }
+      .tree summary::-webkit-details-marker {
+        display: none;
+      }
+      .tree summary:hover {
+        background: var(--bg-3);
+      }
+      .tree summary::before {
+        content: '▸';
+        display: inline-block;
+        width: 14px;
+        color: var(--muted);
+        transition: transform 0.15s;
+      }
+      .tree details[open] > summary::before {
+        transform: rotate(90deg);
+      }
+      .tree .seg {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .tree .seg .count {
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 11px;
+        margin-left: 4px;
+      }
+      .tree .leaf {
+        margin-left: 18px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        color: var(--muted);
+        display: block;
+        text-decoration: none;
+        border-left: 2px solid transparent;
+      }
+      .tree .leaf:hover {
+        background: var(--bg-3);
+        color: var(--text);
+      }
+      .tree .leaf.active {
+        color: var(--text);
+        border-left-color: var(--accent);
+        background: var(--bg-3);
+      }
 
-    const filterBadges = [];
-    if (state.activeType) filterBadges.push(`<span class="chip active">type: ${state.activeType} <span class="count">×</span></span>`);
-    if (state.activeTag) filterBadges.push(`<span class="chip active">tag: ${state.activeTag} <span class="count">×</span></span>`);
-    if (state.search) filterBadges.push(`<span class="chip active">search: ${escapeHtml(state.search)}</span>`);
+      .search-input {
+        width: 100%;
+        padding: 7px 10px;
+        background: var(--bg-3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+      }
+      .search-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
 
-    let html = `
+      main.content {
+        overflow-y: auto;
+        padding: 24px 32px 80px;
+      }
+      .breadcrumbs {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 14px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .breadcrumbs a {
+        color: var(--accent);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .breadcrumbs a:hover {
+        text-decoration: underline;
+      }
+
+      /* Index card grid */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          transform 0.15s;
+        position: relative;
+      }
+      .card:hover {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+      .card .card-type {
+        display: inline-block;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        line-height: 1.35;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+      }
+      .card p.summary {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+      .card .meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .card .meta .path {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+      }
+      .card .tags {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .card .tag {
+        font-size: 10.5px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: var(--bg-3);
+        color: var(--muted);
+      }
+      .card .link-count {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .card .link-count b {
+        color: var(--accent);
+      }
+
+      /* Type colors */
+      .t-daily {
+        background: rgba(63, 185, 80, 0.18);
+        color: var(--green);
+      }
+      .t-meeting {
+        background: rgba(210, 153, 34, 0.18);
+        color: var(--orange);
+      }
+      .t-project {
+        background: rgba(210, 168, 255, 0.18);
+        color: var(--accent-2);
+      }
+      .t-decision {
+        background: rgba(248, 81, 73, 0.18);
+        color: var(--red);
+      }
+      .t-intelligence {
+        background: rgba(57, 197, 207, 0.18);
+        color: var(--teal);
+      }
+
+      /* Entry detail */
+      .entry-detail {
+        max-width: 900px;
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        gap: 32px;
+        align-items: start;
+      }
+      .entry-body {
+        min-width: 0;
+      }
+      .entry-meta {
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 12.5px;
+        position: sticky;
+        top: 0;
+      }
+      .entry-meta h4 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 14px 0 6px;
+        font-weight: 600;
+      }
+      .entry-meta h4:first-child {
+        margin-top: 0;
+      }
+      .entry-meta dl {
+        margin: 0;
+      }
+      .entry-meta dt {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .entry-meta dd {
+        margin: 0 0 8px;
+        word-break: break-word;
+      }
+      .entry-meta dd.path {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 12px;
+      }
+      .entry-meta ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .entry-meta li {
+        margin: 4px 0;
+      }
+      .entry-meta li a {
+        color: var(--text);
+        text-decoration: none;
+        display: block;
+        padding: 5px 7px;
+        border-radius: 4px;
+        border-left: 2px solid var(--accent);
+        background: var(--bg-3);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .entry-meta li a:hover {
+        background: var(--border);
+      }
+      .entry-meta li a .ltype {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+      }
+
+      .entry-body h1 {
+        font-size: 26px;
+        margin: 0 0 8px;
+        line-height: 1.2;
+        letter-spacing: -0.015em;
+      }
+      .entry-body h2 {
+        font-size: 18px;
+        margin: 26px 0 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid var(--border);
+      }
+      .entry-body h3 {
+        font-size: 15px;
+        margin: 20px 0 6px;
+      }
+      .entry-body p,
+      .entry-body ul,
+      .entry-body ol {
+        margin: 0 0 12px;
+      }
+      .entry-body ul,
+      .entry-body ol {
+        padding-left: 24px;
+      }
+      .entry-body li {
+        margin: 4px 0;
+      }
+      .entry-body code {
+        background: var(--bg-3);
+        padding: 1.5px 5px;
+        border-radius: 3px;
+        font-size: 90%;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+      }
+      .entry-body table {
+        border-collapse: collapse;
+        margin: 12px 0;
+        font-size: 13px;
+        width: 100%;
+      }
+      .entry-body th,
+      .entry-body td {
+        border: 1px solid var(--border);
+        padding: 5px 10px;
+        text-align: left;
+      }
+      .entry-body th {
+        background: var(--bg-3);
+        font-weight: 600;
+      }
+      .entry-body td.num,
+      .entry-body th.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .entry-body a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .entry-body a:hover {
+        text-decoration: underline;
+      }
+      .entry-body a.wikilink {
+        color: var(--accent-2);
+        background: rgba(210, 168, 255, 0.1);
+        padding: 0 4px;
+        border-radius: 3px;
+      }
+      .entry-body a.wikilink.broken {
+        color: var(--muted);
+        background: transparent;
+        border-bottom: 1px dotted var(--muted);
+        cursor: not-allowed;
+      }
+      .entry-body hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 22px 0;
+      }
+      .entry-body blockquote {
+        border-left: 3px solid var(--border);
+        margin: 12px 0;
+        padding: 4px 14px;
+        color: var(--muted);
+      }
+
+      .sensitivity-badge {
+        display: inline-block;
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      .s-operational {
+        background: var(--bg-3);
+        color: var(--muted);
+      }
+      .s-project {
+        background: rgba(210, 168, 255, 0.18);
+        color: var(--accent-2);
+      }
+      .s-strategic {
+        background: rgba(57, 197, 207, 0.18);
+        color: var(--teal);
+      }
+      .s-private {
+        background: rgba(248, 81, 73, 0.22);
+        color: var(--red);
+      }
+
+      .empty {
+        color: var(--muted);
+        text-align: center;
+        padding: 60px 20px;
+        font-size: 14px;
+      }
+
+      /* Mini graph */
+      .graph-section {
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 22px;
+      }
+      .graph-section h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .graph-section p {
+        margin: 0 0 8px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      svg.graph {
+        width: 100%;
+        height: 380px;
+        display: block;
+      }
+      svg.graph .node circle {
+        cursor: pointer;
+        stroke-width: 1.5;
+        transition: r 0.15s;
+      }
+      svg.graph .node:hover circle {
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      svg.graph .node text {
+        fill: var(--text);
+        font-size: 10.5px;
+        pointer-events: none;
+      }
+      svg.graph line.edge {
+        stroke: var(--border);
+        stroke-width: 1;
+      }
+
+      details.helpbox {
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 18px;
+        font-size: 13px;
+      }
+      details.helpbox summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text);
+      }
+      details.helpbox p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      details.helpbox kbd {
+        background: var(--bg-3);
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 11.5px;
+        font-family: ui-monospace, monospace;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 220px 1fr;
+        }
+        aside.sidebar {
+          padding: 12px 10px 60px;
+        }
+        main.content {
+          padding: 18px 18px 60px;
+        }
+        .entry-detail {
+          grid-template-columns: 1fr;
+        }
+        .entry-meta {
+          position: static;
+        }
+        header.topbar {
+          flex-wrap: wrap;
+          gap: 8px 16px;
+          padding: 10px 14px;
+        }
+        header.topbar .subtitle {
+          width: 100%;
+          order: 3;
+        }
+        header.topbar .stats {
+          margin-left: 0;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        svg.graph {
+          height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Knowledge Base · Arguss Labs</h1>
+      <span class="subtitle"
+        >demo for management — view what entries look like, and how they
+        connect</span
+      >
+      <div class="stats">
+        <div><b id="stat-entries">—</b> entries</div>
+        <div><b id="stat-types">—</b> types</div>
+        <div><b id="stat-tags">—</b> tags</div>
+        <div><b id="stat-links">—</b> links</div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <input
+          id="search"
+          class="search-input"
+          type="search"
+          placeholder="Search titles, content, tags…"
+        />
+        <h3>Content type</h3>
+        <div id="filter-types" class="filter-row"></div>
+        <h3>Folders (logical path)</h3>
+        <div id="tree" class="tree"></div>
+        <h3>Top tags</h3>
+        <div id="filter-tags" class="filter-row"></div>
+      </aside>
+
+      <main class="content" id="main">
+        <!-- rendered by JS -->
+      </main>
+    </div>
+
+    <script type="application/json" id="kb-data">
+      {
+        "entries": [
+          {
+            "id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "org_id": "org_demo",
+            "title": "Daily Notes — 2026-05-15",
+            "content": "## Notes\n\n- Q3 OKR prep kickoff today — see [[2026-05-15-Q3-OKR-Prep]].\n\n- Received call from gaming commission regarding cage shortages; they plan to audit IHC cage policies and procedures. See [[2026-05-15-cage-audit-concern]].\n- Set up meeting with cage manager to discuss shortages — job search opened in [[2026-05-15-cage-manager-search]].\n- Need to meet with GM to discuss commission audit concerns.\n- Call F&B about private dining room for Mr. Holman (May 23, 8 covers, birthday). Hold flagged in [[2026-05-12-shift-report]]; pricing being drafted in [[pdr-package-draft]].",
+            "summary": "Daily notes for 2026-05-15 — gaming commission audit concern, cage manager meeting, GM briefing needed.",
+            "content_type": "daily",
+            "logical_path": "Daily/2026-05-15",
+            "sensitivity": "operational",
+            "department": null,
+            "owner_id": "usr_xr_admin",
+            "tags": ["daily", "cage", "gaming-commission", "audit"],
+            "domain_meta": {},
+            "version": 4,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-15T20:59:55.329229Z",
+            "updated_at": "2026-05-25T14:09:36.915061Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "org_id": "org_demo",
+            "title": "Daily Note — Q3 OKR Prep",
+            "content": "Time to prep for third quarter OKRs.\n\n## Cross-cutting inputs to fold in\n- Compliance overhang from [[2026-05-15-cage-audit-concern]] (and the open [[2026-05-15-cage-manager-search]]) — may pull a leadership cycle off OKR work.\n- Marketing summer push: [[2026-headliner-concert]] and [[summer-programming]] both land in the OKR window.\n- Freeplay rebuild [[2026-mid-week]] launches mid-quarter; targeting hypothesis from [[wednesday-vs-tuesday-pattern]] is the measurable.\n- Today's standing notes: [[2026-05-15]].",
+            "summary": "Daily note flagging the start of Q3 OKR preparation.",
+            "content_type": "daily",
+            "logical_path": "Daily/2026-05-15-Q3-OKR-Prep",
+            "sensitivity": "shared",
+            "department": null,
+            "owner_id": "usr_5074d425251616df",
+            "tags": ["daily-note", "okr", "planning", "q3"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_5074d425251616df",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-15T21:45:15.103682Z",
+            "updated_at": "2026-05-25T14:09:36.683503Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "org_id": "org_demo",
+            "title": "2024 Cage Cash-Handling Incident — Post-Mortem",
+            "content": "## What happened\nOn 2024-09-14 the main cage logged a $42K variance during graveyard shift. Root cause: a fill slip was double-credited because the supervisor on duty approved the manual override without the second-signature step required by internal control SOP 4.2.\n\n## Corrective actions\n- Two-signature requirement enforced in cage software (no manual override path).\n- Quarterly retraining for all cage supervisors on SOP 4.2.\n- Variance threshold alerting moved from $25K to $10K.\n\n## Sign-offs\n- VP Casino Ops: J. Reilly, 2024-09-22\n- Compliance: M. Park, 2024-09-23\n- President: M. Alvarez, 2024-09-25\n\n## Precedent value\nCited whenever cash-handling policy is reopened — see 2026 review of high-limit cage staffing for current application. Currently active reference: [[2026-05-15-cage-audit-concern]] and [[2026-05-15-cage-manager-search]].",
+            "summary": "Cage variance event in Q3 2024; corrective actions and sign-offs.",
+            "content_type": "decision",
+            "logical_path": "Decisions/2024/cage-ops-incident",
+            "sensitivity": "shared",
+            "department": "casino-operations",
+            "owner_id": "usr_xr_admin",
+            "tags": ["cage-ops", "incident", "cash-handling", "post-mortem"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:09.890892Z",
+            "updated_at": "2026-05-25T14:08:39.533734Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "790fca2f-a02f-4df2-bed1-a48414ff10d0",
+            "org_id": "org_demo",
+            "title": "Fight Night — July 2025 (Promotion Record)",
+            "content": "## Concept\nHeadliner boxing card on Saturday night with bundled hotel/F&B package and tournament-style slot promo all weekend.\n\n## Original brief\nTarget: top-2-tier loyalty + comp lift on table drop. Budget: $480K marketing, $220K talent. Headliner: M. Rojas vs. D. Tate (welterweight).\n\n## Results\n- Hotel occupancy Fri–Sun: 98 / 100 / 92 (forecast 90 / 95 / 80).\n- Slot coin-in +37% vs. comparable July weekend; high-denom +52%.\n- F&B covers: 3,420 weekend (forecast 2,800). Steakhouse +41%.\n- Theoretical win lift attributed to promo: ~$2.1M.\n\n## After-action review\nWins: hotel/F&B bundle drove longer stays; tournament promo pulled new players to high-denom floor. Losses: undersold Friday night (single-night packages weren't available); merch revenue 30% under plan because POS wasn't ready. Recommendation for 2026: split-night packages, pre-event merch online sales, consider second-tier undercard to extend Sunday. Carried into [[summer-programming]].",
+            "summary": "July 2025 fight-night weekend: brief, slot performance, F&B covers, AAR.",
+            "content_type": "project",
+            "logical_path": "Promotions/2025/fight-night-july",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": [
+              "fight-night",
+              "summer-programming",
+              "headliner",
+              "executed"
+            ],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:10.194783Z",
+            "updated_at": "2026-05-25T14:08:39.296466Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "org_id": "org_demo",
+            "title": "2026 Summer Programming — Revised Fight-Night Format",
+            "content": "## The call\nRun fight-night weekend July 2026 with a *revised* format: split-night hotel packages, second-tier Sunday undercard, pre-event merch online window, headliner negotiation capped at $250K talent budget.\n\n## Reasoning\n2025 record ([[fight-night-july]]) showed strong weekend lift but undersold Friday and missed merch revenue. The fixes target both losses directly without changing the headliner economics, which were the validated wins.\n\n## Dissent\nVP Marketing argued for a different headliner caliber (a name with broader draw outside the boxing audience), citing softer national TV interest in the welterweight division. Held at the table; revisit in March if talent market moves.\n\nAdjacent summer marketing push: [[2026-headliner-concert]].\n\n## Success criteria\n- Friday occupancy ≥ 95 (vs. 98 Sat).\n- Merch revenue ≥ $180K (2025 actual: $128K against $180K plan).\n- Theoretical win lift ≥ $2.0M (2025: $2.1M).\n- No talent-cost variance > 10% against $250K cap.",
+            "summary": "Commit to revised fight-night format for July 2026; rationale, dissent, success criteria.",
+            "content_type": "decision",
+            "logical_path": "Decisions/2026/summer-programming",
+            "sensitivity": "shared",
+            "department": "leadership",
+            "owner_id": "usr_xr_admin",
+            "tags": ["fight-night", "summer-programming", "decisions"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:10.424022Z",
+            "updated_at": "2026-05-25T14:08:39.069297Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "170d1eda-9fd9-4160-89c2-2787981bca62",
+            "org_id": "org_demo",
+            "title": "Guest Complaint Escalation — Playbook",
+            "content": "## Tier 1 — Frontline\nServer, dealer, front desk agent owns first-touch recovery. Authority to comp up to $50 F&B / $0 room without manager approval (steakhouse detail: [[comp-policy]]). Log every comp in the property comp tracker with reason code.\n\n## Tier 2 — Manager on Duty (MOD)\nEscalate when: guest requests a manager, comp ask > tier-1 limit, allegation involves staff conduct, or VIP loyalty tier. MOD authority: $250 F&B / 1 night room. MOD must log a daily-note entry by end of shift.\n\n## Tier 3 — Director / VP\nEscalate when: legal/regulatory implication (ADA, gaming), media risk, comp ask > tier-2, or repeat complaint from same guest within 30 days. Page the Director of Guest Services via the on-call rotation.\n\n## Pattern to watch\nIf you find yourself reading this playbook more than twice in a week, that's a signal — log it to the operations daily note so leadership can see the trend.",
+            "summary": "When and how to escalate guest complaints; comp thresholds, MOD pager flow.",
+            "content_type": "resource",
+            "logical_path": "Resources/guest-complaint-escalation",
+            "sensitivity": "operational",
+            "department": "operations",
+            "owner_id": "usr_xr_admin",
+            "tags": [
+              "guest-complaint",
+              "escalation",
+              "operations",
+              "service-recovery"
+            ],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:10.646048Z",
+            "updated_at": "2026-05-25T14:08:38.844961Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "org_id": "org_demo",
+            "title": "Kill Decision — Tuesday Senior Promo (Q2 2025)",
+            "content": "## The call\nDiscontinue the Tuesday senior promo after the Q1 2025 cycle.\n\n## Reasoning\nFloor data showed the promo was cannibalizing Wednesday senior visits (historically the stronger day) rather than incremental. Theoretical win on Tuesdays rose modestly but Wednesday dropped more than the Tuesday gain. Net theoretical: -$18K/week on a $32K/week promo spend.\n\n## Why we're writing it down\nEvery six months somebody asks why we killed the Tuesday promo. The answer is here. If conditions change (Wednesday softening on its own), revisit — but start from this baseline, not from scratch. Competitive watchpoint: [[senior-day-offers]]. Adjacent Tuesday/Wednesday analysis: [[wednesday-vs-tuesday-pattern]].",
+            "summary": "Discontinue the Tuesday senior promo. Reasoning preserved so the question doesn't resurface unanswered.",
+            "content_type": "decision",
+            "logical_path": "Decisions/2025/tuesday-senior-promo-kill",
+            "sensitivity": "operational",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["senior-promo", "promotions", "killed"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:10.867263Z",
+            "updated_at": "2026-05-25T14:08:38.619241Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "org_id": "org_demo",
+            "title": "Maria — Daily Note 2026-05-13",
+            "content": "## Decided today\n- Committed to revised fight-night format for July (see [[summer-programming]]; 2025 record [[fight-night-july]]).\n- Approved two HR hires in F&B (steakhouse line cook, bar back).\n\n## Worried about\n- Operations team is reading the [[guest-complaint-escalation]] guide 3x/day for   two weeks running. Something is happening on the floor — scheduled COO   follow-up Thursday.\n- 14% wine vendor price increase pending at steakhouse ([[wine-program-cab-change]]); Sam will decide this   week.\n\n## Pickup tomorrow\n- Read the cage-ops 2024 post-mortem ([[cage-ops-incident]]) before the cash-handling review meeting.\n- Confirm undercard direction with VP Marketing before contract goes out.",
+            "summary": "End-of-day note: decisions, worries, pickups for tomorrow.",
+            "content_type": "daily",
+            "logical_path": "Daily/maria/2026-05-13",
+            "sensitivity": "private",
+            "department": "leadership",
+            "owner_id": "usr_xr_admin",
+            "tags": ["daily-note", "leadership"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:11.091538Z",
+            "updated_at": "2026-05-25T14:08:38.392050Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "org_id": "org_demo",
+            "title": "Agency Weekly Check-In — 2026-05-11",
+            "content": "## Attendees\nDevon Park (Marketing), J. Chen (agency lead), R. Patel (agency creative), promotions analyst.\n\n## Decisions\n- Approve mid-week freeplay creative v3 for the Tuesday flight (not Wednesday —   see [[wednesday-vs-tuesday-pattern]]). Flight detail: [[2026-mid-week]].\n- Hold senior-day paid social pending Q2 budget rebalance.\n\n## Action items\n- J. Chen: ship Tuesday freeplay creative by 2026-05-15.\n- R. Patel: draft headliner-concert hero treatment, 3 options, by 2026-05-18 (brief: [[2026-headliner-concert]]).\n- Promotions analyst: pull weekend slot tournament underperformance write-up.\n\n## Notes\nAgency floated a Wednesday freeplay variant. Held — see [[wednesday-vs-tuesday-pattern]]: every Wednesday proposal in three years has come from a vendor pitch.",
+            "summary": "Decisions and action items from weekly agency call. Transcript stored as attachment.",
+            "content_type": "meeting",
+            "logical_path": "Meetings/marketing/2026-05-11-agency-checkin",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["agency", "marketing", "weekly-checkin"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:11.317643Z",
+            "updated_at": "2026-05-25T14:08:38.131964Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "org_id": "org_demo",
+            "title": "Freeplay — Wednesday vs. Tuesday Pattern",
+            "content": "## The pattern\nAcross 2024, 2025, and 2026 mid-week freeplay programs ([[2024-mid-week]], [[2025-mid-week]], [[2026-mid-week]]), the Wednesday flights have underperformed the Tuesday flights on every primary KPI (theoretical win lift, redemption rate, new-player capture).\n\n## Why this isn't a coincidence\nEvery Wednesday proposal traces back to a vendor pitch — usually the same two ad-tech vendors arguing mid-week dayparts are 'underbid.' They aren't underbid for *our* property: our Tuesday loyalty calendar is the anchor, and Wednesday cannibalizes it.\n\n## Implication\nDefault to Tuesday flights. Wednesday only on explicit hypothesis (e.g. a new headliner mid-week event creating natural traffic) — not on a vendor pitch alone. Reopen this note if the Tuesday anchor changes. Adjacent senior-day kill applying the same logic: [[tuesday-senior-promo-kill]]. Competitive pressure on Wednesday: [[senior-day-offers]].",
+            "summary": "Three years of mid-week freeplay programs: Wednesday underperforms Tuesday, every time.",
+            "content_type": "context",
+            "logical_path": "Strategy/freeplay/wednesday-vs-tuesday-pattern",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["freeplay", "mid-week", "strategy", "pattern"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:11.539998Z",
+            "updated_at": "2026-05-25T14:08:37.907621Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "org_id": "org_demo",
+            "title": "Mid-Week Freeplay — 2024 Program",
+            "content": "Tuesday flight (lead): $25 freeplay to top-3-tier loyalty, every Tuesday in Feb-May. Redemption 62%, theoretical win lift $1.4M.\n\nWednesday variant (pitched by ad-tech vendor): same offer, Wednesdays. Redemption 41%, theoretical win lift $0.6M, plus -$0.3M cannibalization from Tuesday. Killed after April.\n\nPost-mortem: vendor model didn't account for our Tuesday loyalty anchor. Pattern carried forward in [[wednesday-vs-tuesday-pattern]]; superseded by [[2025-mid-week]] and [[2026-mid-week]].",
+            "summary": "2024 mid-week freeplay: Tuesday flight vs. Wednesday flight.",
+            "content_type": "project",
+            "logical_path": "Promotions/freeplay/2024-mid-week",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["freeplay", "mid-week", "executed", "2024"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:11.769996Z",
+            "updated_at": "2026-05-25T14:08:37.680940Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "org_id": "org_demo",
+            "title": "Mid-Week Freeplay — 2025 Program",
+            "content": "Tuesday-only Feb-April: redemption 64%, theoretical win lift $1.6M.\n\nMarch Wednesday A/B test (run because a new agency lead wanted to revisit the question): redemption 38%, no measurable Tuesday lift. Same vendor-pitch origin as [[2024-mid-week]] Wednesday variant. Pattern write-up: [[wednesday-vs-tuesday-pattern]]. Killed at end of March.",
+            "summary": "2025 mid-week freeplay: Tuesday lead with a March Wednesday test.",
+            "content_type": "project",
+            "logical_path": "Promotions/freeplay/2025-mid-week",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["freeplay", "mid-week", "executed", "2025"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:11.993259Z",
+            "updated_at": "2026-05-25T14:08:37.388097Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "org_id": "org_demo",
+            "title": "Mid-Week Freeplay — 2026 Program (Rebuild)",
+            "content": "Tuesday-only by default (see [[wednesday-vs-tuesday-pattern]]; prior cycle [[2025-mid-week]]). Offer amount dynamic: $15 / $25 / $40 freeplay tiered to 90-day theoretical rather than static loyalty tier. Hypothesis: tighter targeting improves redemption-to-lift ratio. Launch: 2026-06-04.",
+            "summary": "2026 rebuild: Tuesday anchor, dynamic offer amount tied to recent play.",
+            "content_type": "project",
+            "logical_path": "Promotions/freeplay/2026-mid-week",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["freeplay", "mid-week", "in-progress", "2026"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:12.219326Z",
+            "updated_at": "2026-05-25T14:08:37.159619Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "org_id": "org_demo",
+            "title": "Creative Brief — Summer 2026 Headliner Concert",
+            "content": "## Campaign\nAugust 2026 headliner concert (artist confidential until announce date). Hero-treatment review tracked in [[2026-05-11-agency-checkin]]. Adjacent summer programming: [[summer-programming]].\n\n## Audience\nPrimary: 35-55 entertainment-leaning loyalty members within 200mi. Secondary: regional drive-market non-members for hotel/F&B bundle.\n\n## Hero message\n'A weekend, not just a show' — hotel/F&B bundle anchors the offer, concert is the headline.\n\n## Channels\nEmail + push (loyalty), regional paid social, OOH within 100mi, partnership with regional ticket partner for non-member traffic.\n\n## Success criteria\n- Bundle attach rate ≥ 35% of ticket sales.\n- Hotel occupancy concert weekend ≥ 96.\n- New loyalty enrollments ≥ 1,200 over campaign window.",
+            "summary": "Creative brief for the August 2026 headliner concert. Promoted from Devon's personal zone.",
+            "content_type": "project",
+            "logical_path": "Marketing/briefs/2026-headliner-concert",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["creative-brief", "headliner", "summer-programming"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:12.441957Z",
+            "updated_at": "2026-05-25T14:08:36.934289Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38",
+            "org_id": "org_demo",
+            "title": "Across-The-River Property — Senior-Day Offers",
+            "content": "## Observed program\nWednesday senior days: $30 freeplay + $10 F&B credit for 55+ loyalty members. No tier gate. Bus partnerships with two regional senior centers.\n\n## Observed traffic\nThree Wednesdays sampled in March 2026: full bus arrivals 9–11am, F&B credit redemption ~70% (high), freeplay redemption visible at low-denom carousel.\n\n## Our implication\nWe killed our Tuesday senior promo (see [[tuesday-senior-promo-kill]]) because Wednesday is our anchor. New property is targeting our Wednesday strength explicitly. Recommend: track Wednesday senior visits monthly for 6 months; revisit Tuesday kill decision if Wednesday softens > 8% YoY.",
+            "summary": "New property's senior-day program: structure, comp terms, observed traffic.",
+            "content_type": "intelligence",
+            "logical_path": "Competitive/across-the-river/senior-day-offers",
+            "sensitivity": "shared",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["competitive-intel", "across-the-river", "senior-day"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:12.665673Z",
+            "updated_at": "2026-05-25T14:08:36.697141Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "3188e870-13be-48c8-89e1-6e59ff58d981",
+            "org_id": "org_demo",
+            "title": "Marketing Team — Daily Summary 2026-05-13",
+            "content": "- Loyalty coordinator: finished senior-day creative v3, queued for QA. Competitive context: [[senior-day-offers]]; prior kill decision: [[tuesday-senior-promo-kill]].\n- Promotions analyst: flagged weekend slot tournament underperformance   (-22% vs. forecast); pulling root-cause draft for Friday.\n- Digital lead: pushed two paid-search variants live, A/B running.\n- Events manager: closed catering contract for headliner-concert weekend. Brief: [[2026-headliner-concert]].\n- Brand designer: hero-treatment options for headliner due to Devon 2026-05-18 (per [[2026-05-11-agency-checkin]]).",
+            "summary": "Marketing team activity rollup before Devon's 9:15 huddle.",
+            "content_type": "daily",
+            "logical_path": "Daily/marketing/2026-05-13-team-summary",
+            "sensitivity": "private",
+            "department": "marketing",
+            "owner_id": "usr_xr_admin",
+            "tags": ["daily-summary", "marketing", "team"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:12.887693Z",
+            "updated_at": "2026-05-25T14:08:36.468349Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "5c3d3c71-0d42-41de-820e-9161f0e53190",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Wine List & Tasting Notes",
+            "content": "## By the glass\n- House cab (Napa, current selection — see [[wine-program-cab-change]]): bold,   blackcurrant, soft tannin. Pairs ribeye, NY strip.\n- Pinot noir (Willamette): cherry, earth. Pairs duck breast, salmon.\n- Chardonnay (Sonoma): oaked, butter, citrus finish. Pairs scallops, chicken.\n- Sauvignon blanc (Marlborough): grass, grapefruit. Pairs raw bar, salads.\n\n## By the bottle (selected)\nFull list in POS. Mark BIN# on every order. If a guest asks for something off-list, page the sommelier (ext. 4421) — do not free-pour and don't promise anything.",
+            "summary": "Current wine list with tasting notes and pour-cost reference.",
+            "content_type": "onboarding",
+            "logical_path": "Steakhouse/onboarding/wine-list",
+            "sensitivity": "shared",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "onboarding", "wine-program"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:13.331495Z",
+            "updated_at": "2026-05-25T14:08:36.244822Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "54f0836c-8af9-4d61-8173-17dc2ef8c802",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Allergen Protocols",
+            "content": "## Front of house\nAlways ask: 'any allergies or restrictions at the table?' before reading specials (step 2 of [[steps-of-service]]). Flag allergies on the POS ticket using the allergen code (NUT, DAIRY, GLUTEN, SHELLFISH, SOY, EGG). Never rely on memory alone — write it.\n\n## Kitchen\nAllergen tickets print on red ticket paper. Separate cutting board, separate tongs, separate plating station for any allergen-flagged dish. Chef on duty must initial the ticket before it leaves the pass.\n\n## If a guest reacts at the table\nCall manager immediately. Do not move the guest. Do not let them refuse EMS without manager present. Log incident before end of shift.",
+            "summary": "Allergen flagging rules and kitchen protocol.",
+            "content_type": "onboarding",
+            "logical_path": "Steakhouse/onboarding/allergen-protocols",
+            "sensitivity": "shared",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "onboarding", "allergens", "safety"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:13.552035Z",
+            "updated_at": "2026-05-25T14:08:36.012692Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Comp Policy",
+            "content": "## Authority\n- Server: comp single item up to $50 for an in-the-moment recovery   (cold steak, slow service > 20min). Manager-flag required for anything else.\n- Manager: up to $250 per check, or a full check up to $500.\n- GM: above that.\n\n## Logging\nEvery comp gets a reason code in POS AND a free-text reason. Free-text is what the AAR reads — 'comp $80 ribeye, cold center, re-fired and remade, guest left satisfied' is useful; 'service issue' is not.\n\n## Repeat-guest rule\nIf you comp the same guest in two consecutive visits, flag the manager — may need to escalate to Guest Services per the escalation playbook ([[guest-complaint-escalation]]).",
+            "summary": "Server, manager, GM comp authority and required logging.",
+            "content_type": "onboarding",
+            "logical_path": "Steakhouse/onboarding/comp-policy",
+            "sensitivity": "shared",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "onboarding", "comp-policy"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:13.773164Z",
+            "updated_at": "2026-05-25T14:08:35.784969Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "b6443414-396c-4a2f-9287-65879c775eb4",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Steps of Service",
+            "content": "1. **Greet within 90 seconds.** Water + bread. Acknowledge by name if VIP    loyalty.\n2. **Ask:** allergens first, then drinks (allergen ticket flow in [[allergen-protocols]]). Specials after drinks ordered.\n3. **Fire course 1.** Salads/apps drop within 8 min.\n4. **Two-bite check-back** on every course.\n5. **Mid-course pre-bus.** Clear apps, reset silver for entrée.\n6. **Entrée drop with temp check.** Cut into steak in front of guest if    requested; offer fresh pepper / steak knife replacement.\n7. **Dessert/digestif offer** within 5 min of clearing entrée.\n8. **Close:** thank by name, walk to door if VIP, write down any reservation    ask before leaving the floor.\n\nComp authority during recovery: see [[comp-policy]]. Section/table numbering: [[floor-map]].",
+            "summary": "Greet, ask, fire, drop, check-back, pre-bus, close.",
+            "content_type": "onboarding",
+            "logical_path": "Steakhouse/onboarding/steps-of-service",
+            "sensitivity": "shared",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "onboarding", "steps-of-service"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:13.997436Z",
+            "updated_at": "2026-05-25T14:08:35.560282Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "ed5de8d4-c257-420e-abd9-a8837e0db451",
+            "org_id": "org_demo",
+            "title": "Wine Program — House Cab Change (May 2026)",
+            "content": "## The call\nReplace current house cab (vendor A, $42/btl cost) with new selection (vendor B, $48/btl cost). Effective 2026-06-01.\n\n## Pros\n- Sommelier and GM both prefer the new bottle on blind comparison.\n- Pairs better with our top three ribeye preparations (per chef de cuisine).\n- Vendor B's portfolio gives us upgrade options on the BTG mid-tier later.\n\n## Cons\n- 14% cost increase on highest-volume BTG SKU.\n- Retail price increase $14 → $16 needed to hold pour cost — risk of guest   pushback at the $16 break.\n\n## Projected GP impact\nAt current weekly volume (~310 pours) and a $16 price point holding pour cost at 28%: weekly GP delta -$140 vs. prior bottle (flat-to-slightly-down) with quality upside. Acceptable trade.\n\n## Comparable being displaced\nVendor A house cab, in program since 2024-Q3. Floor reference for BTG lineup: [[wine-list]].",
+            "summary": "Replace house cab with new selection at +14% cost. Pros, cons, projected GP impact.",
+            "content_type": "decision",
+            "logical_path": "Decisions/steakhouse/wine-program-cab-change",
+            "sensitivity": "operational",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["wine-program", "vendor-change", "vendor", "steakhouse"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:14.236604Z",
+            "updated_at": "2026-05-25T14:08:35.330507Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Shift Report 2026-05-12",
+            "content": "## Service summary\nCovers: 142 (forecast 130). PDR: 1 party of 12.\n\n## Top sellers\nBone-in ribeye (28), filet 8oz (24), seafood tower for two (6).\n\n## Notes\n- Sous chef J. Marrero called out, line covered by chef de cuisine on   saute; finishing times held.\n- Table B-24 guest complaint: steak temp medium-well returned twice. Comped   ($72) and re-fired as filet at no charge. Guest left satisfied. Comp within server authority per [[comp-policy]].\n- Regular (M. Holman, top-tier loyalty): asking for May 23 PDR for 8 covers,   birthday. Hold and follow up. Pricing draft in [[pdr-package-draft]].\n\n## Carry forward\nSalamander still on secondary-only (see [[salamander-outage-2026-05-09]]). Wine cab decision promoting to team-shared Friday — see [[wine-program-cab-change]].",
+            "summary": "Tuesday service notes: covers, top sellers, comps, callout, regulars.",
+            "content_type": "daily",
+            "logical_path": "Daily/steakhouse/2026-05-12-shift-report",
+            "sensitivity": "private",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "shift-report", "daily-note"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:14.681308Z",
+            "updated_at": "2026-05-25T14:08:35.107390Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "org_id": "org_demo",
+            "title": "PDR Package Pricing — Draft",
+            "content": "Working draft of new private dining package pricing. Not for general consumption yet. PDR layout in [[floor-map]]. Active PDR request from M. Holman tracked in [[2026-05-12-shift-report]] and [[2026-05-15]].\n",
+            "summary": null,
+            "content_type": "decision",
+            "logical_path": "Decisions/steakhouse/pdr-package-draft",
+            "sensitivity": "shared",
+            "department": null,
+            "owner_id": "usr_02d73e61286609c4",
+            "tags": ["pricing", "draft"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_02d73e61286609c4",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T22:43:14.287882Z",
+            "updated_at": "2026-05-25T14:08:34.883127Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "org_id": "org_demo",
+            "title": "Gaming Commission Call — Cage Shortage Audit Concern",
+            "content": "## Summary\n\nPhone call received from the gaming commission on 2026-05-15 regarding concerns about shortages in the casino cage. The commission has indicated they intend to conduct a formal audit of IHC's cage policies and procedures.\n\n## Key Points\n\n- **Issue raised:** Gaming commission expressed concern about cage shortages at Arguss Labs Casino.\n- **Commission action:** Intends to conduct an audit of cage policies and procedures.\n- **Internal action required:** GM meeting needed to discuss response strategy, audit readiness, and any immediate corrective steps.\n- **Related:** prior cage-handling history in [[cage-ops-incident]]; cage manager search opened in [[2026-05-15-cage-manager-search]].\n\n## Next Steps\n\n- [ ] Schedule meeting with GM to brief on the commission's concerns\n- [ ] Set up meeting with cage manager to discuss shortages\n- [ ] Review current cage policies and procedures for audit readiness\n- [ ] Identify any gaps or documentation deficiencies ahead of the audit\n- [ ] Prepare response/communication strategy for the gaming commission",
+            "summary": "Gaming commission called on 2026-05-15 to flag cage shortage concerns and announced intent to audit IHC cage policies and procedures; GM meeting needed.",
+            "content_type": "meeting",
+            "logical_path": "Operations/Compliance/GamingCommission/2026-05-15-cage-audit-concern",
+            "sensitivity": "operational",
+            "department": null,
+            "owner_id": "usr_xr_admin",
+            "tags": [
+              "gaming-commission",
+              "cage",
+              "audit",
+              "compliance",
+              "gm-action-required"
+            ],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-15T20:51:58.071620Z",
+            "updated_at": "2026-05-25T14:08:34.656891Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "org_id": "org_demo",
+            "title": "Private — Cage Manager Job Search",
+            "content": "Begin a job search for a new cage manager. Context: gaming commission raised concerns about cage shortages on 2026-05-15 — see [[2026-05-15-cage-audit-concern]]. Prior cage-ops history in [[cage-ops-incident]].",
+            "summary": "Private note to initiate a job search for a new cage manager following gaming commission concerns about cage shortages.",
+            "content_type": "decision",
+            "logical_path": "Private/HR/2026-05-15-cage-manager-search",
+            "sensitivity": "private",
+            "department": null,
+            "owner_id": "usr_xr_admin",
+            "tags": ["private", "hr", "cage", "hiring"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-15T21:02:36.128193Z",
+            "updated_at": "2026-05-25T14:08:34.430548Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "b8a453b9-18fd-45d7-bf30-716a0da6091c",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Salamander Outage 2026-05-09",
+            "content": "## What happened\nMain salamander unit (line 2) lost element mid-service 2026-05-09 ~19:40. Worked around using secondary salamander on line 1; finish times on rib roast and au gratin items stretched by ~4 minutes for the rest of service.\n\n## Guest impact\nTwo tables flagged slow entrées, both recovered with comp dessert. No comps > $25.\n\n## Resolution\nResolved 2026-05-11. Engineering ticket #ENG-4421 closed. Main salamander restored to full operation.",
+            "summary": "Main salamander failed mid-service May 9; worked around with secondary. Resolved May 11, ticket #ENG-4421 closed.",
+            "content_type": "daily",
+            "logical_path": "Steakhouse/incidents/salamander-outage-2026-05-09",
+            "sensitivity": "operational",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["equipment", "steakhouse", "kitchen", "resolved"],
+            "domain_meta": {},
+            "version": 3,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:14.457683Z",
+            "updated_at": "2026-05-15T21:16:12.260231Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          },
+          {
+            "id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80",
+            "org_id": "org_demo",
+            "title": "Steakhouse — Floor Map & Table Numbering",
+            "content": "## Sections\nA (1-12): window line, 2-tops + 4-tops, server station 1.\nB (20-32): center booths, 4-tops + 6-tops, server station 2.\nC (40-48): banquette wall, 4-tops, server station 2.\nD (50-62): bar-side high-tops + chef's counter (6 seats), server station 3.\nPDR (P1): 14-cover private dining room — manager-led service.\n\n## Numbering rule\nTens digit = section, ones digit = position from front. Always say full table number on radio ('three-two' not 'thirty-two').",
+            "summary": "Floor map, section breakdown, table numbering convention.",
+            "content_type": "onboarding",
+            "logical_path": "Steakhouse/onboarding/floor-map",
+            "sensitivity": "shared",
+            "department": "f-and-b",
+            "owner_id": "usr_xr_admin",
+            "tags": ["steakhouse", "onboarding", "floor-map"],
+            "domain_meta": {},
+            "version": 2,
+            "status": "published",
+            "source": "web_ui",
+            "created_by": "usr_xr_admin",
+            "updated_by": "usr_xr_admin",
+            "created_at": "2026-05-14T19:54:13.108785Z",
+            "updated_at": "2026-05-14T19:54:13.108785Z",
+            "claim_type": null,
+            "source_confidence": null,
+            "verification_status": null,
+            "conflict_with": []
+          }
+        ],
+        "edges": [
+          {
+            "source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "target_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "target_id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "209b5a53-9a17-493e-b660-1a29d73fbc29",
+            "target_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0",
+            "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "target_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "170d1eda-9fd9-4160-89c2-2787981bca62",
+            "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "target_id": "790fca2f-a02f-4df2-bed1-a48414ff10d0",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "target_id": "170d1eda-9fd9-4160-89c2-2787981bca62",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "606f0acf-843e-47e0-91c1-039117e23ba1",
+            "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "target_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "target_id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "target_id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "target_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "target_id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "target_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "target_id": "ffe86926-4717-4745-aebb-d5000b4a28d9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "target_id": "6e9d8d2d-6705-4255-9c5a-ec5da54889b3",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "d82195e1-ac54-461c-b679-61115fa37baf",
+            "target_id": "93764bdf-d08a-40d7-b012-f487361c6467",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "target_id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "target_id": "ccba61cd-b7bb-4c63-b917-aea18d8ae057",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38",
+            "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "3188e870-13be-48c8-89e1-6e59ff58d981",
+            "target_id": "645e560e-5fbb-4b66-a67a-6ca1766f3b38",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "3188e870-13be-48c8-89e1-6e59ff58d981",
+            "target_id": "5348eae4-265c-4de4-bc4b-37c83af0fa80",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "3188e870-13be-48c8-89e1-6e59ff58d981",
+            "target_id": "668a6934-1cd6-48c1-a959-e1cb3c3ee0e8",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "3188e870-13be-48c8-89e1-6e59ff58d981",
+            "target_id": "ba47141c-0504-4fda-aee6-c8fe52672d82",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "5c3d3c71-0d42-41de-820e-9161f0e53190",
+            "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "54f0836c-8af9-4d61-8173-17dc2ef8c802",
+            "target_id": "b6443414-396c-4a2f-9287-65879c775eb4",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b",
+            "target_id": "170d1eda-9fd9-4160-89c2-2787981bca62",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "b6443414-396c-4a2f-9287-65879c775eb4",
+            "target_id": "54f0836c-8af9-4d61-8173-17dc2ef8c802",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "b6443414-396c-4a2f-9287-65879c775eb4",
+            "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "b6443414-396c-4a2f-9287-65879c775eb4",
+            "target_id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "ed5de8d4-c257-420e-abd9-a8837e0db451",
+            "target_id": "5c3d3c71-0d42-41de-820e-9161f0e53190",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "target_id": "5b3d11dd-3f15-4eb5-ad0d-def4d3554e3b",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "target_id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "target_id": "b8a453b9-18fd-45d7-bf30-716a0da6091c",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "target_id": "ed5de8d4-c257-420e-abd9-a8837e0db451",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "target_id": "8928d9cf-b6c2-4ffa-b2aa-acfedde40d80",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "target_id": "03354c1d-6bd5-464a-b0c5-cf68833a3be1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "34f4008a-840d-42ac-9279-a108d436a2a2",
+            "target_id": "f4523fa7-fc86-4240-b331-2af75a441d5c",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "target_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "target_id": "e5377af6-5d62-45af-bf8a-8733fc400ea1",
+            "via": "wikilink"
+          },
+          {
+            "source_id": "6d9938ae-d134-4fc5-bb0e-cd16f7f49bc9",
+            "target_id": "e382ed7f-c94a-4dba-ae44-679cd1e57f55",
+            "via": "wikilink"
+          }
+        ]
+      }
+    </script>
+    <script>
+      ;(function () {
+        'use strict'
+
+        const data = JSON.parse(document.getElementById('kb-data').textContent)
+        const entries = data.entries
+        const edges = data.edges
+
+        // Build lookups.
+        const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
+        const outgoing = {}
+        const incoming = {}
+        for (const e of entries) {
+          outgoing[e.id] = []
+          incoming[e.id] = []
+        }
+        for (const edge of edges) {
+          outgoing[edge.source_id].push(edge)
+          incoming[edge.target_id].push(edge)
+        }
+
+        // Tag counts.
+        const tagCounts = {}
+        for (const e of entries)
+          for (const t of e.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1
+        // Type counts.
+        const typeCounts = {}
+        for (const e of entries)
+          typeCounts[e.content_type] = (typeCounts[e.content_type] || 0) + 1
+
+        // Render top stats.
+        document.getElementById('stat-entries').textContent = entries.length
+        document.getElementById('stat-types').textContent =
+          Object.keys(typeCounts).length
+        document.getElementById('stat-tags').textContent =
+          Object.keys(tagCounts).length
+        document.getElementById('stat-links').textContent = edges.length
+
+        // State.
+        const state = {
+          activeType: null,
+          activeTag: null,
+          activePath: null,
+          search: '',
+        }
+
+        // --- Filters UI ---
+        function renderTypeFilters() {
+          const root = document.getElementById('filter-types')
+          root.innerHTML = ''
+          const types = Object.keys(typeCounts).sort(
+            (a, b) => typeCounts[b] - typeCounts[a],
+          )
+          for (const t of types) {
+            const el = document.createElement('span')
+            el.className = 'chip' + (state.activeType === t ? ' active' : '')
+            el.innerHTML = `${t}<span class="count">${typeCounts[t]}</span>`
+            el.onclick = () => {
+              state.activeType = state.activeType === t ? null : t
+              goIndex()
+            }
+            root.appendChild(el)
+          }
+        }
+        function renderTagFilters() {
+          const root = document.getElementById('filter-tags')
+          root.innerHTML = ''
+          const tags = Object.keys(tagCounts)
+            .filter((t) => tagCounts[t] >= 2)
+            .sort((a, b) => tagCounts[b] - tagCounts[a])
+          for (const t of tags) {
+            const el = document.createElement('span')
+            el.className = 'chip' + (state.activeTag === t ? ' active' : '')
+            el.innerHTML = `${t}<span class="count">${tagCounts[t]}</span>`
+            el.onclick = () => {
+              state.activeTag = state.activeTag === t ? null : t
+              goIndex()
+            }
+            root.appendChild(el)
+          }
+        }
+
+        // --- Folder tree ---
+        function buildTree() {
+          const root = { children: {}, entries: [] }
+          for (const e of entries) {
+            const parts = e.logical_path.split('/')
+            let node = root
+            for (let i = 0; i < parts.length - 1; i++) {
+              const seg = parts[i]
+              if (!node.children[seg])
+                node.children[seg] = { children: {}, entries: [] }
+              node = node.children[seg]
+            }
+            node.entries.push(e)
+          }
+          return root
+        }
+        function renderTree() {
+          const root = document.getElementById('tree')
+          root.innerHTML = ''
+          const tree = buildTree()
+          function render(node, path, container, level) {
+            const segs = Object.keys(node.children).sort()
+            for (const seg of segs) {
+              const child = node.children[seg]
+              const segPath = path ? path + '/' + seg : seg
+              const count = countNode(child)
+              const details = document.createElement('details')
+              if (level === 0) details.open = true
+              const summary = document.createElement('summary')
+              summary.innerHTML = `<span class="seg">${escapeHtml(seg)}<span class="count">${count}</span></span>`
+              details.appendChild(summary)
+              const childContainer = document.createElement('div')
+              render(child, segPath, childContainer, level + 1)
+              details.appendChild(childContainer)
+              container.appendChild(details)
+            }
+            // leaf entries at this level
+            for (const e of node.entries.sort((a, b) =>
+              a.title.localeCompare(b.title),
+            )) {
+              const a = document.createElement('a')
+              a.className = 'leaf'
+              a.href = '#/entry/' + e.id
+              a.textContent = e.title
+              container.appendChild(a)
+            }
+          }
+          function countNode(n) {
+            let c = n.entries.length
+            for (const k of Object.keys(n.children))
+              c += countNode(n.children[k])
+            return c
+          }
+          render(tree, '', root, 0)
+        }
+
+        // --- Filtering ---
+        function applyFilters(list) {
+          return list.filter((e) => {
+            if (state.activeType && e.content_type !== state.activeType)
+              return false
+            if (state.activeTag && !(e.tags || []).includes(state.activeTag))
+              return false
+            if (state.search) {
+              const s = state.search.toLowerCase()
+              const hay = (
+                e.title +
+                ' ' +
+                (e.summary || '') +
+                ' ' +
+                e.content +
+                ' ' +
+                (e.tags || []).join(' ')
+              ).toLowerCase()
+              if (!hay.includes(s)) return false
+            }
+            return true
+          })
+        }
+
+        // --- Routing ---
+        function go() {
+          const hash = location.hash.replace(/^#\/?/, '')
+          if (hash.startsWith('entry/')) {
+            const id = hash.slice('entry/'.length)
+            renderEntry(id)
+          } else {
+            renderIndex()
+          }
+          renderTypeFilters()
+          renderTagFilters()
+          renderTree()
+        }
+        function goIndex() {
+          location.hash = '#/'
+          renderIndex()
+          renderTypeFilters()
+          renderTagFilters()
+        }
+
+        // --- Index view ---
+        function renderIndex() {
+          const main = document.getElementById('main')
+          const list = applyFilters(entries)
+          list.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+
+          const filterBadges = []
+          if (state.activeType)
+            filterBadges.push(
+              `<span class="chip active">type: ${state.activeType} <span class="count">×</span></span>`,
+            )
+          if (state.activeTag)
+            filterBadges.push(
+              `<span class="chip active">tag: ${state.activeTag} <span class="count">×</span></span>`,
+            )
+          if (state.search)
+            filterBadges.push(
+              `<span class="chip active">search: ${escapeHtml(state.search)}</span>`,
+            )
+
+          let html = `
       <div class="breadcrumbs">
         <span>All entries</span>
         <span>·</span>
@@ -665,49 +1935,54 @@
         <svg class="graph" id="graph"></svg>
       </div>
 
-      ${filterBadges.length ? `<div class="filter-row" style="margin-bottom:14px">${filterBadges.join("")}</div>` : ""}
+      ${filterBadges.length ? `<div class="filter-row" style="margin-bottom:14px">${filterBadges.join('')}</div>` : ''}
 
-      ${list.length === 0
-        ? `<div class="empty">No entries match the current filters.</div>`
-        : `<div class="grid">${list.map(renderCard).join("")}</div>`}
-    `;
-    main.innerHTML = html;
+      ${
+        list.length === 0
+          ? `<div class="empty">No entries match the current filters.</div>`
+          : `<div class="grid">${list.map(renderCard).join('')}</div>`
+      }
+    `
+          main.innerHTML = html
 
-    renderGraph();
-  }
+          renderGraph()
+        }
 
-  function renderCard(e) {
-    const linkCount = outgoing[e.id].length + incoming[e.id].length;
-    const tagsHtml = (e.tags || []).slice(0, 5).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
-    return `
+        function renderCard(e) {
+          const linkCount = outgoing[e.id].length + incoming[e.id].length
+          const tagsHtml = (e.tags || [])
+            .slice(0, 5)
+            .map((t) => `<span class="tag">${escapeHtml(t)}</span>`)
+            .join('')
+          return `
       <a class="card" href="#/entry/${e.id}" style="text-decoration:none;color:inherit;display:block">
         <span class="card-type t-${e.content_type}">${e.content_type}</span>
-        ${e.sensitivity && e.sensitivity !== "operational" ? `<span class="sensitivity-badge s-${e.sensitivity}">${e.sensitivity}</span>` : ""}
-        <div class="link-count">${linkCount > 0 ? `<b>${linkCount}</b> link${linkCount===1?"":"s"}` : ""}</div>
+        ${e.sensitivity && e.sensitivity !== 'operational' ? `<span class="sensitivity-badge s-${e.sensitivity}">${e.sensitivity}</span>` : ''}
+        <div class="link-count">${linkCount > 0 ? `<b>${linkCount}</b> link${linkCount === 1 ? '' : 's'}` : ''}</div>
         <h2>${escapeHtml(decodeEntities(e.title))}</h2>
-        <p class="summary">${escapeHtml(e.summary || "")}</p>
+        <p class="summary">${escapeHtml(e.summary || '')}</p>
         <div class="meta">
           <span class="path">${escapeHtml(e.logical_path)}</span>
           <span>·</span>
-          <span>${e.updated_at.slice(0,10)}</span>
+          <span>${e.updated_at.slice(0, 10)}</span>
         </div>
         <div class="tags">${tagsHtml}</div>
       </a>
-    `;
-  }
+    `
+        }
 
-  // --- Entry detail view ---
-  function renderEntry(id) {
-    const main = document.getElementById("main");
-    const e = byId[id];
-    if (!e) {
-      main.innerHTML = `<div class="empty">Entry not found. <a href="#/">Back to index</a></div>`;
-      return;
-    }
-    const out = outgoing[id];
-    const inc = incoming[id];
+        // --- Entry detail view ---
+        function renderEntry(id) {
+          const main = document.getElementById('main')
+          const e = byId[id]
+          if (!e) {
+            main.innerHTML = `<div class="empty">Entry not found. <a href="#/">Back to index</a></div>`
+            return
+          }
+          const out = outgoing[id]
+          const inc = incoming[id]
 
-    main.innerHTML = `
+          main.innerHTML = `
       <div class="breadcrumbs">
         <a href="#/">All entries</a>
         <span>·</span>
@@ -728,300 +2003,356 @@
           <dd class="path">${escapeHtml(e.logical_path)}</dd>
 
           <h4>Updated</h4>
-          <dd>${e.updated_at.slice(0,10)} (v${e.version})</dd>
+          <dd>${e.updated_at.slice(0, 10)} (v${e.version})</dd>
 
           <h4>Tags</h4>
           <dd>
             <div class="tags" style="display:flex;flex-wrap:wrap;gap:4px">
-              ${(e.tags || []).map(t => `<span class="tag" style="padding:2px 8px;border-radius:999px;background:var(--bg-3);color:var(--muted);font-size:11px">${escapeHtml(t)}</span>`).join("")}
+              ${(e.tags || []).map((t) => `<span class="tag" style="padding:2px 8px;border-radius:999px;background:var(--bg-3);color:var(--muted);font-size:11px">${escapeHtml(t)}</span>`).join('')}
             </div>
           </dd>
 
-          ${out.length > 0 ? `
+          ${
+            out.length > 0
+              ? `
             <h4>Links to (${out.length})</h4>
             <ul>
-              ${out.map(edge => {
-                const target = byId[edge.target_id];
-                if (!target) return "";
-                return `<li><a href="#/entry/${target.id}"><span class="ltype">${target.content_type} · ${edge.via}</span>${escapeHtml(decodeEntities(target.title))}</a></li>`;
-              }).join("")}
+              ${out
+                .map((edge) => {
+                  const target = byId[edge.target_id]
+                  if (!target) return ''
+                  return `<li><a href="#/entry/${target.id}"><span class="ltype">${target.content_type} · ${edge.via}</span>${escapeHtml(decodeEntities(target.title))}</a></li>`
+                })
+                .join('')}
             </ul>
-          ` : ""}
+          `
+              : ''
+          }
 
-          ${inc.length > 0 ? `
+          ${
+            inc.length > 0
+              ? `
             <h4>Linked from (${inc.length})</h4>
             <ul>
-              ${inc.map(edge => {
-                const source = byId[edge.source_id];
-                if (!source) return "";
-                return `<li><a href="#/entry/${source.id}"><span class="ltype">${source.content_type} · ${edge.via}</span>${escapeHtml(decodeEntities(source.title))}</a></li>`;
-              }).join("")}
+              ${inc
+                .map((edge) => {
+                  const source = byId[edge.source_id]
+                  if (!source) return ''
+                  return `<li><a href="#/entry/${source.id}"><span class="ltype">${source.content_type} · ${edge.via}</span>${escapeHtml(decodeEntities(source.title))}</a></li>`
+                })
+                .join('')}
             </ul>
-          ` : ""}
+          `
+              : ''
+          }
         </div>
       </div>
-    `;
-    document.getElementById("entry-body").innerHTML = renderMarkdown(e.content, e.id);
-    window.scrollTo(0, 0);
-    document.querySelector("main.content").scrollTo(0, 0);
-  }
-
-  // --- Link graph (force layout, very small) ---
-  function renderGraph() {
-    const svg = document.getElementById("graph");
-    if (!svg) return;
-    const NS = "http://www.w3.org/2000/svg";
-    const width = svg.clientWidth;
-    const height = svg.clientHeight;
-
-    // Only show entries with at least one edge to reduce clutter.
-    const connected = new Set();
-    for (const ed of edges) { connected.add(ed.source_id); connected.add(ed.target_id); }
-    const nodes = entries.filter(e => connected.has(e.id)).map(e => ({
-      id: e.id, title: e.title, type: e.content_type,
-      x: width/2 + (Math.random()-0.5) * width * 0.6,
-      y: height/2 + (Math.random()-0.5) * height * 0.6,
-      vx: 0, vy: 0,
-    }));
-    const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
-    const links = edges.filter(ed => nodeMap[ed.source_id] && nodeMap[ed.target_id]);
-
-    // Simple force simulation.
-    const ITERS = 220;
-    const REPEL = 1800;
-    const SPRING = 0.012;
-    const SPRING_LEN = 90;
-    const DAMP = 0.86;
-    const CENTER = 0.005;
-
-    for (let iter = 0; iter < ITERS; iter++) {
-      for (const a of nodes) {
-        let fx = (width/2 - a.x) * CENTER;
-        let fy = (height/2 - a.y) * CENTER;
-        for (const b of nodes) {
-          if (a === b) continue;
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const d2 = dx*dx + dy*dy + 0.01;
-          const f = REPEL / d2;
-          fx += dx / Math.sqrt(d2) * f;
-          fy += dy / Math.sqrt(d2) * f;
+    `
+          document.getElementById('entry-body').innerHTML = renderMarkdown(
+            e.content,
+            e.id,
+          )
+          window.scrollTo(0, 0)
+          document.querySelector('main.content').scrollTo(0, 0)
         }
-        a.vx = (a.vx + fx) * DAMP;
-        a.vy = (a.vy + fy) * DAMP;
-      }
-      for (const l of links) {
-        const a = nodeMap[l.source_id], b = nodeMap[l.target_id];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const d = Math.sqrt(dx*dx + dy*dy) + 0.01;
-        const f = SPRING * (d - SPRING_LEN);
-        const ux = dx/d, uy = dy/d;
-        a.vx += ux * f; a.vy += uy * f;
-        b.vx -= ux * f; b.vy -= uy * f;
-      }
-      for (const n of nodes) {
-        n.x += n.vx; n.y += n.vy;
-        n.x = Math.max(30, Math.min(width - 30, n.x));
-        n.y = Math.max(20, Math.min(height - 20, n.y));
-      }
-    }
 
-    // Color by type.
-    const typeColors = {
-      daily: "#3fb950",
-      meeting: "#d29922",
-      project: "#d2a8ff",
-      decision: "#f85149",
-      intelligence: "#39c5cf",
-    };
+        // --- Link graph (force layout, very small) ---
+        function renderGraph() {
+          const svg = document.getElementById('graph')
+          if (!svg) return
+          const NS = 'http://www.w3.org/2000/svg'
+          const width = svg.clientWidth
+          const height = svg.clientHeight
 
-    let s = "";
-    for (const l of links) {
-      const a = nodeMap[l.source_id], b = nodeMap[l.target_id];
-      s += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`;
-    }
-    for (const n of nodes) {
-      const c = typeColors[n.type] || "#8b949e";
-      const r = 5 + Math.min(8, (outgoing[n.id].length + incoming[n.id].length));
-      const label = n.title.length > 32 ? n.title.slice(0, 30) + "…" : n.title;
-      s += `<g class="node" onclick="location.hash='#/entry/${n.id}'">
+          // Only show entries with at least one edge to reduce clutter.
+          const connected = new Set()
+          for (const ed of edges) {
+            connected.add(ed.source_id)
+            connected.add(ed.target_id)
+          }
+          const nodes = entries
+            .filter((e) => connected.has(e.id))
+            .map((e) => ({
+              id: e.id,
+              title: e.title,
+              type: e.content_type,
+              x: width / 2 + (Math.random() - 0.5) * width * 0.6,
+              y: height / 2 + (Math.random() - 0.5) * height * 0.6,
+              vx: 0,
+              vy: 0,
+            }))
+          const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]))
+          const links = edges.filter(
+            (ed) => nodeMap[ed.source_id] && nodeMap[ed.target_id],
+          )
+
+          // Simple force simulation.
+          const ITERS = 220
+          const REPEL = 1800
+          const SPRING = 0.012
+          const SPRING_LEN = 90
+          const DAMP = 0.86
+          const CENTER = 0.005
+
+          for (let iter = 0; iter < ITERS; iter++) {
+            for (const a of nodes) {
+              let fx = (width / 2 - a.x) * CENTER
+              let fy = (height / 2 - a.y) * CENTER
+              for (const b of nodes) {
+                if (a === b) continue
+                const dx = a.x - b.x,
+                  dy = a.y - b.y
+                const d2 = dx * dx + dy * dy + 0.01
+                const f = REPEL / d2
+                fx += (dx / Math.sqrt(d2)) * f
+                fy += (dy / Math.sqrt(d2)) * f
+              }
+              a.vx = (a.vx + fx) * DAMP
+              a.vy = (a.vy + fy) * DAMP
+            }
+            for (const l of links) {
+              const a = nodeMap[l.source_id],
+                b = nodeMap[l.target_id]
+              const dx = b.x - a.x,
+                dy = b.y - a.y
+              const d = Math.sqrt(dx * dx + dy * dy) + 0.01
+              const f = SPRING * (d - SPRING_LEN)
+              const ux = dx / d,
+                uy = dy / d
+              a.vx += ux * f
+              a.vy += uy * f
+              b.vx -= ux * f
+              b.vy -= uy * f
+            }
+            for (const n of nodes) {
+              n.x += n.vx
+              n.y += n.vy
+              n.x = Math.max(30, Math.min(width - 30, n.x))
+              n.y = Math.max(20, Math.min(height - 20, n.y))
+            }
+          }
+
+          // Color by type.
+          const typeColors = {
+            daily: '#3fb950',
+            meeting: '#d29922',
+            project: '#d2a8ff',
+            decision: '#f85149',
+            intelligence: '#39c5cf',
+          }
+
+          let s = ''
+          for (const l of links) {
+            const a = nodeMap[l.source_id],
+              b = nodeMap[l.target_id]
+            s += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`
+          }
+          for (const n of nodes) {
+            const c = typeColors[n.type] || '#8b949e'
+            const r =
+              5 + Math.min(8, outgoing[n.id].length + incoming[n.id].length)
+            const label =
+              n.title.length > 32 ? n.title.slice(0, 30) + '…' : n.title
+            s += `<g class="node" onclick="location.hash='#/entry/${n.id}'">
         <circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${c}" fill-opacity="0.75" stroke="${c}"></circle>
         <text x="${n.x + r + 4}" y="${n.y + 3}">${escapeHtml(decodeEntities(label))}</text>
-      </g>`;
-    }
-    svg.innerHTML = s;
-  }
-
-  // --- Markdown rendering (minimal, custom — no CDN) ---
-  function renderMarkdown(md, ownerId) {
-    // Normalize line endings.
-    md = md.replace(/\r\n?/g, "\n");
-
-    // Decode the few entities the source uses (e.g. &amp;).
-    md = decodeEntities(md);
-
-    // Code spans first (so we can put the placeholders back at the end).
-    const codes = [];
-    md = md.replace(/`([^`\n]+?)`/g, (_, code) => {
-      codes.push(code);
-      return `CODE${codes.length-1}`;
-    });
-
-    // Escape HTML on the remaining content.
-    md = escapeHtml(md);
-
-    // Tables.
-    md = md.replace(/((?:^\|.*\n)+)/gm, (block) => {
-      const lines = block.trim().split("\n");
-      if (lines.length < 2) return block;
-      // separator row check
-      const sep = lines[1];
-      if (!/^\|[\s\-:|]+\|$/.test(sep.trim())) return block;
-      const header = splitRow(lines[0]);
-      const align = splitRow(sep).map(c => {
-        c = c.trim();
-        if (c.startsWith(":") && c.endsWith(":")) return "center";
-        if (c.endsWith(":")) return "right";
-        return "left";
-      });
-      const rows = lines.slice(2).map(splitRow);
-      let html = "<table><thead><tr>";
-      for (let i = 0; i < header.length; i++) {
-        html += `<th class="${align[i]==='right'?'num':''}" style="text-align:${align[i]}">${header[i]}</th>`;
-      }
-      html += "</tr></thead><tbody>";
-      for (const r of rows) {
-        html += "<tr>";
-        for (let i = 0; i < r.length; i++) {
-          html += `<td class="${align[i]==='right'?'num':''}" style="text-align:${align[i]}">${r[i]}</td>`;
+      </g>`
+          }
+          svg.innerHTML = s
         }
-        html += "</tr>";
-      }
-      html += "</tbody></table>";
-      return html + "\n";
-    });
-    function splitRow(line) {
-      let l = line.trim();
-      if (l.startsWith("|")) l = l.slice(1);
-      if (l.endsWith("|")) l = l.slice(0, -1);
-      return l.split("|").map(c => c.trim());
-    }
 
-    // Headings.
-    md = md.replace(/^###### (.*)$/gm, "<h6>$1</h6>");
-    md = md.replace(/^##### (.*)$/gm, "<h5>$1</h5>");
-    md = md.replace(/^#### (.*)$/gm, "<h4>$1</h4>");
-    md = md.replace(/^### (.*)$/gm, "<h3>$1</h3>");
-    md = md.replace(/^## (.*)$/gm, "<h2>$1</h2>");
-    md = md.replace(/^# (.*)$/gm, "<h1>$1</h1>");
+        // --- Markdown rendering (minimal, custom — no CDN) ---
+        function renderMarkdown(md, ownerId) {
+          // Normalize line endings.
+          md = md.replace(/\r\n?/g, '\n')
 
-    // Horizontal rules.
-    md = md.replace(/^---+$/gm, "<hr />");
+          // Decode the few entities the source uses (e.g. &amp;).
+          md = decodeEntities(md)
 
-    // Bullet lists. Group consecutive lines starting with "- " or "* ".
-    md = md.replace(/(?:^[-*] .*(?:\n|$))+?/gm, (block) => {
-      const items = block.trim().split("\n").map(l => l.replace(/^[-*] /, ""));
-      return "<ul>" + items.map(i => `<li>${i}</li>`).join("") + "</ul>\n";
-    });
-    // Numbered lists.
-    md = md.replace(/(?:^\d+\. .*(?:\n|$))+?/gm, (block) => {
-      const items = block.trim().split("\n").map(l => l.replace(/^\d+\. /, ""));
-      return "<ol>" + items.map(i => `<li>${i}</li>`).join("") + "</ol>\n";
-    });
+          // Code spans first (so we can put the placeholders back at the end).
+          const codes = []
+          md = md.replace(/`([^`\n]+?)`/g, (_, code) => {
+            codes.push(code)
+            return `CODE${codes.length - 1}`
+          })
 
-    // Bold and italic.
-    md = md.replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>");
-    md = md.replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,!?]|$)/g, "$1<em>$2</em>");
+          // Escape HTML on the remaining content.
+          md = escapeHtml(md)
 
-    // Markdown links [text](url). Treat /kb/<id> as internal nav.
-    md = md.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
-      const m = url.match(/^\/kb\/([0-9a-f-]{36})/);
-      if (m) {
-        const t = byId[m[1]];
-        return `<a class="wikilink" href="#/entry/${m[1]}">${text}${t ? "" : ""}</a>`;
-      }
-      const safe = url.replace(/"/g, "&quot;");
-      return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-    });
+          // Tables.
+          md = md.replace(/((?:^\|.*\n)+)/gm, (block) => {
+            const lines = block.trim().split('\n')
+            if (lines.length < 2) return block
+            // separator row check
+            const sep = lines[1]
+            if (!/^\|[\s\-:|]+\|$/.test(sep.trim())) return block
+            const header = splitRow(lines[0])
+            const align = splitRow(sep).map((c) => {
+              c = c.trim()
+              if (c.startsWith(':') && c.endsWith(':')) return 'center'
+              if (c.endsWith(':')) return 'right'
+              return 'left'
+            })
+            const rows = lines.slice(2).map(splitRow)
+            let html = '<table><thead><tr>'
+            for (let i = 0; i < header.length; i++) {
+              html += `<th class="${align[i] === 'right' ? 'num' : ''}" style="text-align:${align[i]}">${header[i]}</th>`
+            }
+            html += '</tr></thead><tbody>'
+            for (const r of rows) {
+              html += '<tr>'
+              for (let i = 0; i < r.length; i++) {
+                html += `<td class="${align[i] === 'right' ? 'num' : ''}" style="text-align:${align[i]}">${r[i]}</td>`
+              }
+              html += '</tr>'
+            }
+            html += '</tbody></table>'
+            return html + '\n'
+          })
+          function splitRow(line) {
+            let l = line.trim()
+            if (l.startsWith('|')) l = l.slice(1)
+            if (l.endsWith('|')) l = l.slice(0, -1)
+            return l.split('|').map((c) => c.trim())
+          }
 
-    // Wikilinks [[handle]]. Resolve via the same handle map the build uses.
-    md = md.replace(/\[\[([^\]\|]+?)\]\]/g, (_, raw) => {
-      const handle = raw.trim().toLowerCase();
-      const targetId = resolveHandle(handle);
-      if (targetId) {
-        const t = byId[targetId];
-        return `<a class="wikilink" href="#/entry/${targetId}">${escapeHtml(decodeEntities(t.title))}</a>`;
-      }
-      return `<span class="wikilink broken" title="No entry matches this handle">${escapeHtml(raw)}</span>`;
-    });
+          // Headings.
+          md = md.replace(/^###### (.*)$/gm, '<h6>$1</h6>')
+          md = md.replace(/^##### (.*)$/gm, '<h5>$1</h5>')
+          md = md.replace(/^#### (.*)$/gm, '<h4>$1</h4>')
+          md = md.replace(/^### (.*)$/gm, '<h3>$1</h3>')
+          md = md.replace(/^## (.*)$/gm, '<h2>$1</h2>')
+          md = md.replace(/^# (.*)$/gm, '<h1>$1</h1>')
 
-    // Paragraphs: wrap orphan text blocks.
-    const parts = md.split(/\n{2,}/);
-    md = parts.map(p => {
-      const t = p.trim();
-      if (!t) return "";
-      // Already an HTML block?
-      if (/^<(h\d|ul|ol|table|hr|blockquote|p|div)/.test(t)) return t;
-      return `<p>${t.replace(/\n/g, "<br/>")}</p>`;
-    }).join("\n");
+          // Horizontal rules.
+          md = md.replace(/^---+$/gm, '<hr />')
 
-    // Restore code spans.
-    md = md.replace(/CODE(\d+)/g, (_, i) => `<code>${escapeHtml(codes[+i])}</code>`);
+          // Bullet lists. Group consecutive lines starting with "- " or "* ".
+          md = md.replace(/(?:^[-*] .*(?:\n|$))+?/gm, (block) => {
+            const items = block
+              .trim()
+              .split('\n')
+              .map((l) => l.replace(/^[-*] /, ''))
+            return (
+              '<ul>' + items.map((i) => `<li>${i}</li>`).join('') + '</ul>\n'
+            )
+          })
+          // Numbered lists.
+          md = md.replace(/(?:^\d+\. .*(?:\n|$))+?/gm, (block) => {
+            const items = block
+              .trim()
+              .split('\n')
+              .map((l) => l.replace(/^\d+\. /, ''))
+            return (
+              '<ol>' + items.map((i) => `<li>${i}</li>`).join('') + '</ol>\n'
+            )
+          })
 
-    return md;
-  }
+          // Bold and italic.
+          md = md.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+          md = md.replace(
+            /(^|[\s(])\*([^*\n]+?)\*(?=[\s).,!?]|$)/g,
+            '$1<em>$2</em>',
+          )
 
-  // Build the wikilink resolver client-side too.
-  const handleMap = (function () {
-    const m = {};
-    for (const e of entries) {
-      const last = e.logical_path.split("/").pop();
-      if (last) m[last.toLowerCase()] = e.id;
-      const slug = e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      if (!(slug in m)) m[slug] = e.id;
-    }
-    return m;
-  })();
-  const handleKeys = Object.keys(handleMap);
-  function resolveHandle(handle) {
-    if (handle in handleMap) return handleMap[handle];
-    let best = { score: 0, key: null };
-    for (const k of handleKeys) {
-      if (handle.startsWith(k) || k.startsWith(handle)) {
-        const score = Math.min(handle.length, k.length);
-        if (score > best.score) best = { score, key: k };
-      }
-    }
-    if (best.key && best.score >= 6) return handleMap[best.key];
-    return null;
-  }
+          // Markdown links [text](url). Treat /kb/<id> as internal nav.
+          md = md.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+            const m = url.match(/^\/kb\/([0-9a-f-]{36})/)
+            if (m) {
+              const t = byId[m[1]]
+              return `<a class="wikilink" href="#/entry/${m[1]}">${text}${t ? '' : ''}</a>`
+            }
+            const safe = url.replace(/"/g, '&quot;')
+            return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`
+          })
 
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-  function decodeEntities(s) {
-    return String(s)
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-  }
+          // Wikilinks [[handle]]. Resolve via the same handle map the build uses.
+          md = md.replace(/\[\[([^\]\|]+?)\]\]/g, (_, raw) => {
+            const handle = raw.trim().toLowerCase()
+            const targetId = resolveHandle(handle)
+            if (targetId) {
+              const t = byId[targetId]
+              return `<a class="wikilink" href="#/entry/${targetId}">${escapeHtml(decodeEntities(t.title))}</a>`
+            }
+            return `<span class="wikilink broken" title="No entry matches this handle">${escapeHtml(raw)}</span>`
+          })
 
-  // Search wiring.
-  document.getElementById("search").addEventListener("input", (ev) => {
-    state.search = ev.target.value.trim();
-    if (location.hash.startsWith("#/entry/")) location.hash = "#/";
-    else renderIndex();
-  });
+          // Paragraphs: wrap orphan text blocks.
+          const parts = md.split(/\n{2,}/)
+          md = parts
+            .map((p) => {
+              const t = p.trim()
+              if (!t) return ''
+              // Already an HTML block?
+              if (/^<(h\d|ul|ol|table|hr|blockquote|p|div)/.test(t)) return t
+              return `<p>${t.replace(/\n/g, '<br/>')}</p>`
+            })
+            .join('\n')
 
-  window.addEventListener("hashchange", go);
-  go();
-})();
-</script>
-</body>
+          // Restore code spans.
+          md = md.replace(
+            /CODE(\d+)/g,
+            (_, i) => `<code>${escapeHtml(codes[+i])}</code>`,
+          )
+
+          return md
+        }
+
+        // Build the wikilink resolver client-side too.
+        const handleMap = (function () {
+          const m = {}
+          for (const e of entries) {
+            const last = e.logical_path.split('/').pop()
+            if (last) m[last.toLowerCase()] = e.id
+            const slug = e.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '')
+            if (!(slug in m)) m[slug] = e.id
+          }
+          return m
+        })()
+        const handleKeys = Object.keys(handleMap)
+        function resolveHandle(handle) {
+          if (handle in handleMap) return handleMap[handle]
+          let best = { score: 0, key: null }
+          for (const k of handleKeys) {
+            if (handle.startsWith(k) || k.startsWith(handle)) {
+              const score = Math.min(handle.length, k.length)
+              if (score > best.score) best = { score, key: k }
+            }
+          }
+          if (best.key && best.score >= 6) return handleMap[best.key]
+          return null
+        }
+
+        function escapeHtml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+        }
+        function decodeEntities(s) {
+          return String(s)
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+        }
+
+        // Search wiring.
+        document.getElementById('search').addEventListener('input', (ev) => {
+          state.search = ev.target.value.trim()
+          if (location.hash.startsWith('#/entry/')) location.hash = '#/'
+          else renderIndex()
+        })
+
+        window.addEventListener('hashchange', go)
+        go()
+      })()
+    </script>
+  </body>
 </html>
