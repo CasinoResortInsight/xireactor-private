@@ -17,7 +17,7 @@ import urllib.request
 API_BASE = os.environ.get("BRILLIANT_API_BASE", "http://localhost:8010")
 API_KEY = os.environ.get(
     "BRILLIANT_API_KEY",
-    "bkai_0015_bba18a68227046158708",
+    "bkai_512d_8727efbc306f66fe8e59",
 )
 OUTPUT = Path(__file__).resolve().parent.parent / "kb-demo.html"
 
@@ -97,7 +97,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Knowledge Base — Indian Head Casino · Demo</title>
+<title>Knowledge Base — Arguss Labs · Demo</title>
 <style>
   :root {
     --bg: #0e1117;
@@ -539,7 +539,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 <body>
 
 <header class="topbar">
-  <h1>Knowledge Base · Indian Head Casino</h1>
+  <h1>Knowledge Base · Arguss Labs</h1>
   <span class="subtitle">demo for management — view what entries look like, and how they connect</span>
   <div class="stats">
     <div><b id="stat-entries">—</b> entries</div>
