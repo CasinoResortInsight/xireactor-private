@@ -1,0 +1,315 @@
+import { getApiKey } from "./auth";
+
+// All requests go through the local FastAPI proxy at /api/*, which forwards
+// to BRILLIANT_API_BASE and passes our Authorization header through.
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const key = getApiKey();
+  const headers = new Headers(init.headers);
+  if (key) headers.set("Authorization", `Bearer ${key}`);
+  if (!headers.has("Content-Type") && init.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  const r = await fetch(`/api${path}`, { ...init, headers });
+  if (!r.ok) {
+    let detail: string = r.statusText;
+    try {
+      const j = await r.json();
+      const d = j.detail ?? j.message;
+      // FastAPI validation errors arrive as an array of objects — flatten them
+      // so the UI shows something readable instead of "[object Object]".
+      if (Array.isArray(d)) {
+        detail = d
+          .map((e: { loc?: unknown[]; msg?: string }) =>
+            `${(e.loc || []).join(".")}: ${e.msg || JSON.stringify(e)}`,
+          )
+          .join("; ");
+      } else if (typeof d === "string") {
+        detail = d;
+      } else if (d != null) {
+        detail = JSON.stringify(d);
+      }
+    } catch {
+      // body wasn't json — keep statusText
+    }
+    throw new ApiError(r.status, detail);
+  }
+  return r.json() as Promise<T>;
+}
+
+// --- Response types we care about for Phase 1 ---------------------------------
+
+export interface Entry {
+  id: string;
+  title: string;
+  content_type: string;
+  sensitivity: string;
+  logical_path: string;
+  summary?: string | null;
+  content: string;
+  tags?: string[];
+  updated_at: string;
+  created_at: string;
+  updated_by?: string;
+  created_by?: string;
+  version: number;
+}
+
+export interface EntryList {
+  entries: Entry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TagWithCount {
+  tag: string;
+  count: number;
+}
+
+export interface TagListResponse {
+  tags: TagWithCount[];
+  total: number;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  link_type: string;
+  weight: number;
+}
+
+export interface GraphNode {
+  id: string;
+  title: string;
+  content_type: string;
+  logical_path: string;
+  summary?: string | null;
+  updated_at: string;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  total_nodes: number;
+  total_edges: number;
+  truncated: boolean;
+  generated_at: string;
+}
+
+export interface IndexCategory {
+  content_type: string;
+  count: number;
+}
+
+export interface IndexResponse {
+  depth: number;
+  total_entries: number;
+  categories: IndexCategory[];
+}
+
+export interface TopEntryRow {
+  entry_id: string;
+  title?: string;
+  hits: number;
+}
+
+// --- Endpoints used by the dashboard -----------------------------------------
+
+export interface ListEntriesParams {
+  q?: string;
+  content_type?: string;
+  logical_path?: string;
+  tag?: string;
+  limit?: number;
+  offset?: number;
+}
+
+function qs(params: Record<string, string | number | undefined>): string {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== "") u.set(k, String(v));
+  }
+  const s = u.toString();
+  return s ? `?${s}` : "";
+}
+
+export const listEntries = (params: ListEntriesParams = {}) =>
+  request<EntryList>(
+    `/entries${qs({ limit: 200, offset: 0, ...params })}`,
+  );
+
+export const getEntry = (id: string) => request<Entry>(`/entries/${id}`);
+
+// --- Mutations ----------------------------------------------------------------
+
+export interface EntryCreatePayload {
+  title: string;
+  content: string;
+  content_type: string;
+  logical_path: string;
+  summary?: string | null;
+  sensitivity?: string | null;
+  tags?: string[];
+}
+
+export interface EntryUpdatePayload {
+  title?: string;
+  content?: string;
+  summary?: string | null;
+  content_type?: string;
+  logical_path?: string;
+  sensitivity?: string;
+  tags?: string[];
+  expected_version?: number;
+}
+
+export const createEntry = (body: EntryCreatePayload) =>
+  request<Entry>(`/entries`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const updateEntry = (id: string, body: EntryUpdatePayload) =>
+  request<Entry>(`/entries/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+export const appendEntry = (id: string, content: string, expectedVersion?: number) =>
+  request<Entry>(`/entries/${id}/append`, {
+    method: "PATCH",
+    body: JSON.stringify({ content, expected_version: expectedVersion }),
+  });
+
+export const deleteEntry = (id: string) =>
+  request<{ message: string }>(`/entries/${id}`, { method: "DELETE" });
+
+// --- Types registry -----------------------------------------------------------
+
+export interface ContentTypeRow {
+  name: string;
+  description: string | null;
+  alias_of: string | null;
+  is_active: boolean;
+}
+
+export const listTypes = () => request<{ types: ContentTypeRow[] }>(`/types`);
+
+// --- Staging ------------------------------------------------------------------
+
+export interface StagingItem {
+  id: string;
+  target_entry_id: string | null;
+  target_path: string;
+  change_type: string;
+  proposed_title: string | null;
+  proposed_content: string | null;
+  proposed_meta: Record<string, unknown> | null;
+  governance_tier: number;
+  submission_category: string;
+  status: string;
+  priority: number;
+  submitted_by: string;
+  source: string;
+  created_at: string;
+  promoted_entry_id?: string | null;
+}
+
+export interface StagingList {
+  items: StagingItem[];
+  total: number;
+}
+
+export const listStaging = (status = "pending") =>
+  request<StagingList>(`/staging${qs({ status })}`);
+
+export const approveStaging = (id: string, reason?: string) =>
+  request<StagingItem>(`/staging/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
+  });
+
+export const rejectStaging = (id: string, reason?: string) =>
+  request<StagingItem>(`/staging/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
+  });
+
+// --- Tag co-occurrence --------------------------------------------------------
+
+export interface TagCoOccurrence {
+  tag: string;
+  co_count: number;
+  jaccard: number;
+}
+
+export const coOccurringTags = (tag: string, limit = 15) =>
+  request<{ tag: string; neighbors: TagCoOccurrence[] }>(
+    `/tags/${encodeURIComponent(tag)}/co-occurring${qs({ limit })}`,
+  );
+
+// --- Identity / auth ----------------------------------------------------------
+
+export interface SessionUser {
+  id: string;
+  display_name: string;
+  role: string;
+  department: string | null;
+  source?: string;
+}
+
+// GET /session validates the key and returns the caller's identity (among a
+// larger manifest we ignore). Used to show "who am I" and gate admin actions.
+export const getSession = () =>
+  request<{ user: SessionUser }>(`/session`).then((m) => m.user);
+
+export interface LoginResponse {
+  api_key: string;
+  user: SessionUser;
+}
+
+// POST /login with JSON. NOTE: the API rotates (revoke-all-then-issue) the
+// user's API key on every login, so this invalidates any previously issued
+// key. The UI warns about this before calling it.
+export const login = (email: string, password: string) =>
+  request<LoginResponse>(`/login`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+
+// Pull every entry by walking pages (API caps each page at 200). Capped at
+// `max` to keep dashboard cost bounded; Phase 2 switches to a streaming view.
+export async function listAllEntries(max = 2000): Promise<EntryList> {
+  const pageSize = 200;
+  const first = await listEntries({ limit: pageSize, offset: 0 });
+  const all = [...first.entries];
+  for (let offset = pageSize; offset < first.total && all.length < max; offset += pageSize) {
+    const page = await listEntries({ limit: pageSize, offset });
+    all.push(...page.entries);
+    if (page.entries.length === 0) break;
+  }
+  return { entries: all, total: first.total, limit: pageSize, offset: 0 };
+}
+
+export const listTags = () => request<TagListResponse>(`/tags`);
+
+export const getGraph = () => request<GraphResponse>(`/graph`);
+
+export const getIndex = (depth = 1) =>
+  request<IndexResponse>(`/index?depth=${depth}`);
+
+export const topEntries = (since = "7d") =>
+  request<{ rows: TopEntryRow[] } | TopEntryRow[]>(
+    `/analytics/top-entries?since=${since}`,
+  );
+
+export const health = () => request<{ status: string }>(`/version`).catch(() =>
+  ({ status: "unknown" }),
+);
