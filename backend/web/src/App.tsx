@@ -10,6 +10,8 @@ import { Settings } from "./components/Settings";
 // cytoscape is ~400 KB — only pull it in when the graph tab is opened.
 const Graph = lazy(() => import("./pages/Graph").then((m) => ({ default: m.Graph })));
 import { ToastHost } from "./components/Toast";
+import { ChatPanel } from "./components/ChatPanel";
+import { chatClient } from "./chat";
 import { hasApiKey } from "./auth";
 import { Route, useRoute } from "./router";
 import { startLivePolling, stopLivePolling } from "./mutations";
@@ -48,6 +50,7 @@ function CurrentView({ route }: { route: Route }) {
 
 export default function App() {
   const [showSettings, setShowSettings] = useState(!hasApiKey());
+  const [showChat, setShowChat] = useState(false);
   const [upstream, setUpstream] = useState<"ok" | "err" | "unknown">("unknown");
   const route = useRoute();
   const identity = useIdentity();
@@ -111,6 +114,9 @@ export default function App() {
             )}
             {identity.status === "anon" && <span className="muted">no key</span>}
           </span>
+          <button className="btn primary" onClick={() => setShowChat(true)}>
+            Ask AI
+          </button>
           <button className="btn" onClick={() => setShowSettings(true)}>
             Settings
           </button>
@@ -120,6 +126,12 @@ export default function App() {
         <CurrentView route={route} />
       </main>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      <ChatPanel
+        client={chatClient}
+        route={route}
+        open={showChat}
+        onClose={() => setShowChat(false)}
+      />
       <ToastHost />
     </>
   );

@@ -56,7 +56,18 @@ async def _close_client() -> None:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "upstream": API_BASE}
+    return {
+        "status": "ok",
+        "upstream": API_BASE,
+        "chat": "on" if os.environ.get("ANTHROPIC_API_KEY") else "off",
+    }
+
+
+# Claude chat WebSocket (Phase 6). Imported lazily-ish at module load; the
+# handler itself defers the SDK import so the proxy boots even without it.
+from chat import chat_websocket  # noqa: E402
+
+app.websocket("/api/chat/ws")(chat_websocket)
 
 
 @app.get("/export")
