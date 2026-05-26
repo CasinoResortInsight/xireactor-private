@@ -287,6 +287,70 @@ export interface LoginResponse {
   user: SessionUser;
 }
 
+// --- Users / groups / organization -------------------------------------------
+
+export const VALID_ROLES = ["admin", "editor", "commenter", "viewer"] as const;
+export type Role = (typeof VALID_ROLES)[number];
+
+export interface Member {
+  id: string;
+  org_id: string;
+  display_name: string;
+  email: string | null;
+  role: string;
+  department: string | null;
+  is_active: boolean;
+}
+
+export interface Group {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  created_by: string;
+  created_at: string;
+  member_count?: number | null;
+}
+
+export interface GroupMember {
+  group_id: string;
+  user_id: string;
+  org_id: string;
+  added_by: string;
+  added_at: string;
+}
+
+export interface GroupDetail extends Group {
+  members?: GroupMember[] | null;
+}
+
+export interface OrgManifest {
+  total_entries: number;
+  last_updated: string | null;
+  user: SessionUser;
+}
+
+// Admin-only: list every user in the caller's org.
+export const listMembers = () => request<Member[]>(`/org/members`);
+
+export const listGroups = () => request<Group[]>(`/groups`);
+export const getGroup = (id: string) => request<GroupDetail>(`/groups/${id}`);
+
+export const getManifest = () =>
+  request<{ manifest: OrgManifest }>(`/session-init`).then((m) => m.manifest);
+
+export const changeUserRole = (id: string, role: string) =>
+  request<Member>(`/users/${id}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+
+export const deactivateUser = (id: string) =>
+  request<Member>(`/users/${id}/deactivate`, { method: "PATCH" });
+
+export const removeUser = (id: string) =>
+  request<{ message?: string }>(`/users/${id}`, { method: "DELETE" });
+
 // POST /login with JSON. NOTE: the API rotates (revoke-all-then-issue) the
 // user's API key on every login, so this invalidates any previously issued
 // key. The UI warns about this before calling it.
