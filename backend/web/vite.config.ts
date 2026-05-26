@@ -11,6 +11,9 @@ export default defineConfig({
     proxy: {
       // Everything the SPA calls on the FastAPI proxy: the /api/* passthrough
       // plus the root-level /health and /export endpoints.
+      // The chat WebSocket must be matched before the generic /api rule and
+      // flagged ws:true so Vite upgrades the connection.
+      "/api/chat/ws": { target: "ws://localhost:8012", ws: true, changeOrigin: true },
       "/api": { target: "http://localhost:8012", changeOrigin: true },
       "/health": { target: "http://localhost:8012", changeOrigin: true },
       "/export": { target: "http://localhost:8012", changeOrigin: true },

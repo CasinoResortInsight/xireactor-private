@@ -62,6 +62,26 @@ Open <http://localhost:5173>. On first load you'll be prompted for an API key �
 - **Export** — "Export HTML" button downloads a self-contained snapshot built by the backend's `/export` endpoint, which reuses `tools/build_kb_demo.py` (same artifact as the share-out workflow).
 - **Identity / auth** — the stored key is validated against `/session`; the top bar shows your display name + role, and admin-only features are gated by it. Settings also offers an **email/password login** that calls `POST /login` — but this **rotates your API key** (revokes all existing keys), so it's a clearly-warned opt-in; pasting an existing key remains the default.
 
+**Phase 6 — Claude chat.** An "Ask AI" panel (every page) talks to an embedded **Claude Agent SDK** agent over a WebSocket. The agent is wired to the existing Brilliant MCP server, so it can search/read/write the KB through the same code paths as the rest of the console. Read-only tools auto-run; **writes pause for an inline Approve/Deny** in the panel. The current entry is attached as context, so "summarize this entry" works. Streamed assistant text renders as markdown; tool calls are shown collapsed. The conversation survives closing/reopening the panel.
+
+### Enabling chat
+
+Chat needs two extra things on the **server** side (the rest of the console works without them):
+
+1. `pip install -r backend/server/requirements.txt` now includes `claude-agent-sdk` (Python 3.10+).
+2. Set `ANTHROPIC_API_KEY` in the proxy's environment. See [`server/.env.example`](server/.env.example).
+
+```bash
+cd backend/server && source .venv/bin/activate
+pip install -r requirements.txt
+ANTHROPIC_API_KEY=sk-ant-… BRILLIANT_API_BASE=http://localhost:8010 \
+  uvicorn app:app --reload --port 8012
+```
+
+**MCP transport (local vs remote).** By default the agent launches the local stdio MCP server (`mcp/server.py`) — so the interpreter running the proxy must be able to import `mcp/`'s dependencies. To point at a **remote HTTPS MCP** server instead, set `BRILLIANT_MCP_URL`; tool names are namespaced identically (`mcp__brilliant__*`) so nothing else changes. The chat acts with the API key you're using in the console.
+
+**Guardrails:** `KB_CHAT_MAX_TURNS` (default 30) and `KB_CHAT_DAILY_USD_BUDGET` (default $5, per process) cap runaway cost. Writes always require explicit approval.
+
 ## What's next
 
-Phase 6 (Claude chat). See [PLAN.md](./PLAN.md).
+All six planned phases are implemented. Future ideas: true SSE/WS push from `api/` (replace polling), server-side batch endpoints for tag/bulk ops, and cross-reload chat session resume via `resume=<session_id>`.
