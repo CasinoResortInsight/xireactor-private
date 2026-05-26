@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Dashboard } from "./pages/Dashboard";
 import { EntryList } from "./pages/EntryList";
 import { EntryDetail } from "./pages/EntryDetail";
 import { Settings } from "./components/Settings";
+
+// cytoscape is ~400 KB — only pull it in when the graph tab is opened.
+const Graph = lazy(() => import("./pages/Graph").then((m) => ({ default: m.Graph })));
+import { ToastHost } from "./components/Toast";
 import { hasApiKey } from "./auth";
 import { Route, useRoute } from "./router";
+import { startLivePolling, stopLivePolling } from "./mutations";
 
 function NavLink({ to, label, current }: { to: string; label: string; current: boolean }) {
   return (
@@ -22,6 +27,12 @@ function CurrentView({ route }: { route: Route }) {
       return <EntryList />;
     case "entry":
       return <EntryDetail id={route.id} />;
+    case "graph":
+      return (
+        <Suspense fallback={<div className="empty">Loading graph…</div>}>
+          <Graph />
+        </Suspense>
+      );
   }
 }
 
@@ -35,6 +46,22 @@ export default function App() {
       .then((r) => r.json())
       .then((j) => setUpstream(j.status === "ok" ? "ok" : "err"))
       .catch(() => setUpstream("err"));
+  }, []);
+
+  // Live updates — poll every 10s while the tab is mounted. Pause when the
+  // tab is backgrounded to avoid wasted requests.
+  useEffect(() => {
+    if (!hasApiKey()) return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") startLivePolling();
+      else stopLivePolling();
+    };
+    startLivePolling();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stopLivePolling();
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   // Scroll to top on every route change.
@@ -51,6 +78,7 @@ export default function App() {
             label="Entries"
             current={route.name === "entries" || route.name === "entry"}
           />
+          <NavLink to="#/graph" label="Graph" current={route.name === "graph"} />
         </nav>
         <div className="right">
           <span className="status">
@@ -66,6 +94,7 @@ export default function App() {
         <CurrentView route={route} />
       </main>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      <ToastHost />
     </>
   );
 }

@@ -5,3 +5,8 @@ __pycache__/
 *.pyc
 .env
 .env.local
+
+# TypeScript / Vite build artifacts
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js

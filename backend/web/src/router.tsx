@@ -9,12 +9,14 @@ import { useEffect, useState } from "react";
 export type Route =
   | { name: "dashboard" }
   | { name: "entries" }
-  | { name: "entry"; id: string };
+  | { name: "entry"; id: string }
+  | { name: "graph" };
 
 function parse(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
   if (!h || h === "/") return { name: "dashboard" };
   if (h === "entries") return { name: "entries" };
+  if (h === "graph") return { name: "graph" };
   const m = h.match(/^entries\/([0-9a-fA-F-]{36})$/);
   if (m) return { name: "entry", id: m[1] };
   return { name: "dashboard" };
@@ -31,13 +33,14 @@ export function useRoute(): Route {
 }
 
 export function go(route: Route): void {
-  if (route.name === "dashboard") location.hash = "#/";
-  else if (route.name === "entries") location.hash = "#/entries";
-  else location.hash = `#/entries/${route.id}`;
+  location.hash = href(route);
 }
 
 export function href(route: Route): string {
-  if (route.name === "dashboard") return "#/";
-  if (route.name === "entries") return "#/entries";
-  return `#/entries/${route.id}`;
+  switch (route.name) {
+    case "dashboard": return "#/";
+    case "entries":   return "#/entries";
+    case "graph":     return "#/graph";
+    case "entry":     return `#/entries/${route.id}`;
+  }
 }

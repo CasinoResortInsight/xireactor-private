@@ -145,6 +145,61 @@ export const listEntries = (params: ListEntriesParams = {}) =>
 
 export const getEntry = (id: string) => request<Entry>(`/entries/${id}`);
 
+// --- Mutations ----------------------------------------------------------------
+
+export interface EntryCreatePayload {
+  title: string;
+  content: string;
+  content_type: string;
+  logical_path: string;
+  summary?: string | null;
+  sensitivity?: string | null;
+  tags?: string[];
+}
+
+export interface EntryUpdatePayload {
+  title?: string;
+  content?: string;
+  summary?: string | null;
+  content_type?: string;
+  logical_path?: string;
+  sensitivity?: string;
+  tags?: string[];
+  expected_version?: number;
+}
+
+export const createEntry = (body: EntryCreatePayload) =>
+  request<Entry>(`/entries`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const updateEntry = (id: string, body: EntryUpdatePayload) =>
+  request<Entry>(`/entries/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+export const appendEntry = (id: string, content: string, expectedVersion?: number) =>
+  request<Entry>(`/entries/${id}/append`, {
+    method: "PATCH",
+    body: JSON.stringify({ content, expected_version: expectedVersion }),
+  });
+
+export const deleteEntry = (id: string) =>
+  request<{ message: string }>(`/entries/${id}`, { method: "DELETE" });
+
+// --- Types registry -----------------------------------------------------------
+
+export interface ContentTypeRow {
+  name: string;
+  description: string | null;
+  alias_of: string | null;
+  is_active: boolean;
+}
+
+export const listTypes = () => request<{ types: ContentTypeRow[] }>(`/types`);
+
 // Pull every entry by walking pages (API caps each page at 200). Capped at
 // `max` to keep dashboard cost bounded; Phase 2 switches to a streaming view.
 export async function listAllEntries(max = 2000): Promise<EntryList> {

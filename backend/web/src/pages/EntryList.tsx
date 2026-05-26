@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, Entry, listEntries } from "../api";
 import { go } from "../router";
+import { EntryForm } from "../components/EntryForm";
+import { useMutationCounter } from "../mutations";
 
 // Debounce hook — keeps every keystroke from hitting the API.
 function useDebounced<T>(value: T, ms: number): T {
@@ -24,6 +26,8 @@ export function EntryList() {
   const [error, setError] = useState<string | null>(null);
 
   const dq = useDebounced(query, 250);
+  const [creating, setCreating] = useState(false);
+  const mutationN = useMutationCounter();
 
   // Reset to page 0 when any filter changes.
   useEffect(() => setOffset(0), [dq, type, path, tag]);
@@ -53,7 +57,7 @@ export function EntryList() {
     return () => {
       cancelled = true;
     };
-  }, [dq, type, path, tag, offset]);
+  }, [dq, type, path, tag, offset, mutationN]);
 
   // Pull the visible rows' distinct types/folders for the filter dropdowns.
   // For the "all options" lists we'd need a separate fetch; this is "options
@@ -65,6 +69,11 @@ export function EntryList() {
 
   return (
     <>
+      <div className="toolbar">
+        <button className="btn primary" onClick={() => setCreating(true)}>
+          + New entry
+        </button>
+      </div>
       <div className="filters">
         <input
           className="search-input"
@@ -165,6 +174,14 @@ export function EntryList() {
           )}
         </tbody>
       </table>
+
+      {creating && (
+        <EntryForm
+          mode="create"
+          onClose={() => setCreating(false)}
+          onSaved={(e) => go({ name: "entry", id: e.id })}
+        />
+      )}
     </>
   );
 }

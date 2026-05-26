@@ -47,6 +47,12 @@ Open <http://localhost:5173>. On first load you'll be prompted for an API key �
 
 **Phase 2 — Search + entries.** Entries table at `#/entries` with debounced free-text search (`q`) and filters for content_type, folder prefix, and tag. Pagination at 50/page. Click a row to open the entry detail at `#/entries/{id}` — full markdown rendering (ported from `tools/build_kb_demo.py`), wikilink + `/kb/<uuid>` resolution, metadata sidebar with incoming/outgoing link rails derived from `/graph`.
 
+**Phase 3 — CRUD.** Create new entries via the "+ New entry" button on the list view (title / type / sensitivity / folder / summary / tags / markdown content). Edit any entry from the detail view — uses optimistic-concurrency `expected_version` so concurrent edits are detected. Quick-append textarea on the detail view (PATCH `/entries/{id}/append`). Archive (soft-delete) via a confirm modal. Toast feedback on every mutation; all open views auto-refresh after a write.
+
+**Phase 4 — Real-time + Graph.** Background poll every 10s on `GET /entries?limit=1` (sorted by `updated_at DESC`); when the newest timestamp advances past what the tab last saw, every subscribed view (dashboard, list, current entry) refetches automatically. Polling pauses while the tab is backgrounded. New `#/graph` view: full-page interactive cytoscape graph with pan/zoom, content_type filter, click-to-open, and shift-click to focus on a node's 1-hop neighborhood.
+
+> **Note:** Phase 4 adds new npm dependencies (`cytoscape`, `@types/cytoscape`). After pulling these changes, run `npm install` in `backend/web/` before `npm run dev`.
+
 ## What's next
 
-Phase 3 (CRUD), Phase 4 (real-time + graph view), Phase 5 (polish: staging, audit, bulk ops, real auth), Phase 6 (Claude chat). See [PLAN.md](./PLAN.md).
+Phase 5 (polish: staging, audit, bulk ops, real auth), Phase 6 (Claude chat). See [PLAN.md](./PLAN.md).

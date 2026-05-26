@@ -483,3 +483,200 @@ main {
   .entry-detail { grid-template-columns: 1fr; }
   .entry-meta { position: static; }
 }
+
+/* --- Toolbar + danger button --------------------------------------------- */
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.btn.danger {
+  background: rgba(248, 81, 73, 0.12);
+  border-color: var(--red);
+  color: var(--red);
+}
+.btn.danger:hover { background: rgba(248, 81, 73, 0.22); color: var(--red); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Form drawer (extends .drawer) --------------------------------------- */
+.drawer-wide { width: 560px; }
+.drawer label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 12px 0 4px;
+}
+.drawer textarea {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  resize: vertical;
+}
+.drawer textarea:focus { outline: none; border-color: var(--accent); }
+.drawer input.mono, .drawer textarea.mono {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.drawer select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.drawer select:focus { outline: none; border-color: var(--accent); }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form-row > div { min-width: 0; }
+.form-row label { margin-top: 12px; }
+
+/* --- Append box on entry detail ------------------------------------------ */
+.append-box {
+  margin-top: 32px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.append-box h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.append-box textarea {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+.append-box .actions { margin-top: 8px; display: flex; justify-content: flex-end; }
+
+/* --- Modal (delete confirm) ---------------------------------------------- */
+.modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  max-width: 90vw;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  z-index: 60;
+}
+.modal h2 { margin: 0 0 8px; font-size: 16px; }
+.modal p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0 0 16px; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* --- Toasts -------------------------------------------------------------- */
+.toast-host {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  max-width: 360px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+  animation: slidein 0.18s ease-out;
+}
+.toast.success { border-left-color: var(--green); }
+.toast.error { border-left-color: var(--red); color: var(--red); }
+@keyframes slidein {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* --- Graph page ---------------------------------------------------------- */
+/* The graph page is a "full-bleed" view: it ignores `main`'s max-width so
+   the canvas can fill the screen. */
+main:has(.graph-page) { max-width: none; padding: 0; }
+
+.graph-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 53px); /* topbar height */
+}
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-wrap: wrap;
+}
+.graph-toolbar .graph-stats { font-size: 13px; color: var(--muted); }
+.graph-toolbar .graph-stats b { color: var(--text); }
+.graph-toolbar select {
+  padding: 6px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.graph-toolbar .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+.graph-toolbar .focus-pill {
+  background: rgba(88, 166, 255, 0.14);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.graph-toolbar .focus-pill .x {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.graph-canvas {
+  flex: 1;
+  min-height: 0;
+  background: var(--bg);
+}
+.graph-legend {
+  display: flex;
+  gap: 14px;
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  font-size: 12px;
+  color: var(--muted);
+}
+.graph-legend .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.graph-legend .dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
