@@ -3,7 +3,7 @@
 // panel is closed, so reopening resumes the same conversation). Translates the
 // JSON event protocol into typed callbacks the ChatPanel renders.
 
-import { getApiKey } from "./auth";
+import { getActiveBaseUrl, getActiveMcpUrl, getApiKey } from "./auth";
 
 export type ServerEvent =
   | { type: "ready" }
@@ -60,7 +60,15 @@ export class ChatClient {
     const ws = new WebSocket(`${proto}://${location.host}/api/chat/ws`);
     this.ws = ws;
 
-    ws.onopen = () => ws.send(JSON.stringify({ type: "init", key }));
+    ws.onopen = () =>
+      ws.send(
+        JSON.stringify({
+          type: "init",
+          key,
+          base: getActiveBaseUrl() || undefined,
+          mcp_url: getActiveMcpUrl() || undefined,
+        }),
+      );
     ws.onmessage = (e) => {
       let ev: ServerEvent;
       try {

@@ -84,26 +84,33 @@ SYSTEM_PROMPT = (
 )
 
 
-def _mcp_servers(user_key: str) -> dict[str, Any]:
-    """Build the mcp_servers config for the user's key, picking transport from
-    env. Both shapes namespace tools as mcp__brilliant__*."""
-    if MCP_URL:
+def _mcp_servers(user_key: str, api_base: str, mcp_url: str) -> dict[str, Any]:
+    """Build the mcp_servers config for the active connection, picking transport.
+    Both shapes namespace tools as mcp__brilliant__*.
+
+    api_base: the Brilliant API the agent's KB tools should hit (per the active
+              connection — supports the operator's multiple KBs).
+    mcp_url:  optional remote MCP endpoint for this connection; when set, uses
+              streamable-http instead of launching the local stdio server.
+    """
+    remote = mcp_url or MCP_URL
+    if remote:
         # Remote HTTPS (streamable-http). The user's key rides as a bearer; the
         # remote MCP enforces auth/identity itself.
         return {
             "brilliant": {
                 "type": "http",
-                "url": MCP_URL,
+                "url": remote,
                 "headers": {"Authorization": f"Bearer {user_key}"},
             }
         }
     # Local stdio subprocess. server.py uses cwd-relative imports, so put the
     # mcp dir on PYTHONPATH. The MCP presents this key upstream as its service
-    # key, so the agent effectively acts as the key's owner.
+    # key, so the agent effectively acts as the key's owner, against api_base.
     child_env = {
         **os.environ,
         "PYTHONPATH": f"{_MCP_DIR}{os.pathsep}{os.environ.get('PYTHONPATH', '')}",
-        "BRILLIANT_BASE_URL": API_BASE,
+        "BRILLIANT_BASE_URL": api_base,
         "BRILLIANT_SERVICE_API_KEY": user_key,
     }
     return {
@@ -119,9 +126,11 @@ class ChatSession:
     """Owns one ClaudeSDKClient for the lifetime of a WebSocket and bridges the
     agent's approval callback to the browser."""
 
-    def __init__(self, websocket: WebSocket, user_key: str):
+    def __init__(self, websocket: WebSocket, user_key: str, api_base: str, mcp_url: str):
         self.ws = websocket
         self.user_key = user_key
+        self.api_base = api_base or API_BASE
+        self.mcp_url = mcp_url
         self.client: Any = None
         self.session_id: str | None = None
         # req_id -> Future[bool] for pending approval prompts.
@@ -181,7 +190,7 @@ class ChatSession:
             system_prompt=SYSTEM_PROMPT,
             max_turns=MAX_TURNS,
             allowed_tools=ALLOWED_TOOLS,
-            mcp_servers=_mcp_servers(self.user_key),
+            mcp_servers=_mcp_servers(self.user_key, self.api_base, self.mcp_url),
             permission_mode="default",
             can_use_tool=self._can_use_tool,
         )
@@ -320,7 +329,9 @@ async def chat_websocket(websocket: WebSocket) -> None:
                 if not key:
                     await websocket.send_json({"type": "error", "message": "Missing API key."})
                     continue
-                session = ChatSession(websocket, key)
+                base = (msg.get("base") or "").strip().rstrip("/")
+                mcp_url = (msg.get("mcp_url") or "").strip()
+                session = ChatSession(websocket, key, base, mcp_url)
                 try:
                     await session.open()
                 except Exception as e:
