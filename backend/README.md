@@ -1,6 +1,6 @@
 # KB Admin — Backend
 
-Interactive admin console for the Brilliant knowledge base. See [PLAN.md](./PLAN.md) for the full roadmap. This README covers running Phase 1 locally.
+Interactive admin console for the Brilliant knowledge base — dashboard, search/CRUD, graph, staging, tags, activity, users, multi-KB switching, and an "Ask AI" chat. See [PLAN.md](./PLAN.md) for the roadmap (all six phases are implemented).
 
 ## Architecture
 
@@ -14,32 +14,45 @@ In dev the SPA runs on Vite at `:5173` and `vite.config.ts` proxies `/api/*` to 
 ## Prereqs
 
 - Python 3.10+ and Node 18+
-- The main Brilliant API running locally on `http://localhost:8010` (or set `BRILLIANT_API_BASE`)
-- A Brilliant API key (paste it into Settings on first load)
+- A reachable Brilliant API (locally on `http://localhost:8010` by default, or any instance you add as a connection in the UI)
+- A Brilliant API key
 
-## Run
+## Quick start
 
-Two terminals.
-
-**Terminal 1 — proxy:**
+One command bootstraps the Python venv + npm deps and runs both servers:
 
 ```bash
+cd backend
+./dev.sh          # or: make dev
+```
+
+It prints the URLs, warns if the upstream KB isn't answering, and Ctrl-C stops both. Re-running is cheap — it only reinstalls deps when `requirements.txt` / `package.json` change.
+
+Optional config (export, or drop in `backend/server/.env` — see [`server/.env.example`](server/.env.example)):
+
+```bash
+BRILLIANT_API_BASE=http://localhost:8010   # default upstream KB
+ANTHROPIC_API_KEY=sk-ant-…                 # enables the Ask-AI chat
+```
+
+Then open <http://localhost:5173>. On first load the Settings drawer opens — add a **connection** (name + API base URL + API key) and you're in. See [Multiple knowledge bases](#multiple-knowledge-bases).
+
+## Manual run (two terminals)
+
+If you'd rather run the pieces separately:
+
+```bash
+# Terminal 1 — proxy
 cd backend/server
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-BRILLIANT_API_BASE=http://localhost:8010 \
-  uvicorn app:app --reload --port 8012
-```
+BRILLIANT_API_BASE=http://localhost:8010 uvicorn app:app --reload --port 8012
 
-**Terminal 2 — SPA:**
-
-```bash
+# Terminal 2 — SPA
 cd backend/web
 npm install
 npm run dev
 ```
-
-Open <http://localhost:5173>. On first load you'll be prompted for an API key — paste it in, hit Save, and the dashboard will populate.
 
 ## What's working
 
@@ -60,7 +73,7 @@ Open <http://localhost:5173>. On first load you'll be prompted for an API key �
 - **Activity log** (`#/activity`) — recent-changes feed reconstructed from entries ordered by `updated_at` (who/when/version) plus the pending staging queue. The API has no append-only audit trail.
 - **Bulk operations** — multi-select rows in the list view → bulk add-tag / move-folder / archive, with a progress indicator. Client-side fan-out of single-entry writes.
 - **Export** — "Export HTML" button downloads a self-contained snapshot built by the backend's `/export` endpoint, which reuses `tools/build_kb_demo.py` (same artifact as the share-out workflow).
-- **Identity / auth** — the stored key is validated against `/session`; the top bar shows your display name + role, and admin-only features are gated by it. Settings also offers an **email/password login** that calls `POST /login` — but this **rotates your API key** (revokes all existing keys), so it's a clearly-warned opt-in; pasting an existing key remains the default.
+- **Identity / auth** — the stored key is validated against `/session-init`; the top bar shows your display name + role, and admin-only features are gated by it. Settings also offers an **email/password login** that calls `POST /login` — but this **rotates your API key** (revokes all existing keys), so it's a clearly-warned opt-in; pasting an existing key remains the default.
 
 **Phase 6 — Claude chat.** An "Ask AI" panel (every page) talks to an embedded **Claude Agent SDK** agent over a WebSocket. The agent is wired to the existing Brilliant MCP server, so it can search/read/write the KB through the same code paths as the rest of the console. Read-only tools auto-run; **writes pause for an inline Approve/Deny** in the panel. The current entry is attached as context, so "summarize this entry" works. Streamed assistant text renders as markdown; tool calls are shown collapsed. The conversation survives closing/reopening the panel.
 
@@ -68,14 +81,11 @@ Open <http://localhost:5173>. On first load you'll be prompted for an API key �
 
 Chat needs two extra things on the **server** side (the rest of the console works without them):
 
-1. `pip install -r backend/server/requirements.txt` now includes `claude-agent-sdk` (Python 3.10+).
-2. Set `ANTHROPIC_API_KEY` in the proxy's environment. See [`server/.env.example`](server/.env.example).
+1. `claude-agent-sdk` (in `server/requirements.txt`, Python 3.10+) — installed automatically by `dev.sh`.
+2. `ANTHROPIC_API_KEY` in the proxy's environment. Easiest: add it to `backend/server/.env` (see [`server/.env.example`](server/.env.example)) and `./dev.sh` picks it up. Or export it for the manual run:
 
 ```bash
-cd backend/server && source .venv/bin/activate
-pip install -r requirements.txt
-ANTHROPIC_API_KEY=sk-ant-… BRILLIANT_API_BASE=http://localhost:8010 \
-  uvicorn app:app --reload --port 8012
+ANTHROPIC_API_KEY=sk-ant-… uvicorn app:app --reload --port 8012
 ```
 
 **MCP transport (local vs remote).** By default the agent launches the local stdio MCP server (`mcp/server.py`) — so the interpreter running the proxy must be able to import `mcp/`'s dependencies. To point at a **remote HTTPS MCP** server instead, set `BRILLIANT_MCP_URL`; tool names are namespaced identically (`mcp__brilliant__*`) so nothing else changes. The chat acts with the API key you're using in the console.
