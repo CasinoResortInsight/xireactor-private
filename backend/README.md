@@ -82,6 +82,14 @@ ANTHROPIC_API_KEY=sk-ant-… BRILLIANT_API_BASE=http://localhost:8010 \
 
 **Guardrails:** `KB_CHAT_MAX_TURNS` (default 30) and `KB_CHAT_DAILY_USD_BUDGET` (default $5, per process) cap runaway cost. Writes always require explicit approval.
 
+## Users, groups & organization
+
+The **Users** tab (`#/users`) has three sub-views:
+
+- **Users** — every member of the org (`GET /org/members`, admin-only): name, email, role, department, active status. Admins can change a role (`admin`/`editor`/`commenter`/`viewer`), deactivate, or remove a user inline (you can't act on yourself). Non-admins see the data read-only / limited.
+- **Groups** — all groups (`GET /groups`) with member counts; select one to load its members (`GET /groups/{id}`), resolved to display names.
+- **Organization** — a derived overview (there's no dedicated org endpoint): org id, member/active counts, group count, entry total and last-updated (from `/session-init`), plus role and department breakdowns.
+
 ## Multiple knowledge bases
 
 The console can switch between several Brilliant instances hosted in different locations. Open **Settings → Knowledge bases** and add a connection per KB: a name, an API base URL, an API key (paste one, or fetch via email login), and an optional remote MCP URL for chat. The active connection drives every request — its key goes out as `Authorization: Bearer …` and its base as an `X-KB-Base` header that the proxy uses to choose the upstream. The active KB name shows in the top bar; switching reloads the console so all views, identity, and the chat reconnect against the chosen KB.

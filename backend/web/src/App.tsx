@@ -5,6 +5,7 @@ import { EntryDetail } from "./pages/EntryDetail";
 import { Staging } from "./pages/Staging";
 import { Tags } from "./pages/Tags";
 import { Activity } from "./pages/Activity";
+import { Users } from "./pages/Users";
 import { Settings } from "./components/Settings";
 
 // cytoscape is ~400 KB — only pull it in when the graph tab is opened.
@@ -45,6 +46,8 @@ function CurrentView({ route }: { route: Route }) {
       return <Tags />;
     case "activity":
       return <Activity />;
+    case "users":
+      return <Users />;
   }
 }
 
@@ -96,6 +99,7 @@ export default function App() {
           <NavLink to="#/staging" label="Staging" current={route.name === "staging"} />
           <NavLink to="#/tags" label="Tags" current={route.name === "tags"} />
           <NavLink to="#/activity" label="Activity" current={route.name === "activity"} />
+          <NavLink to="#/users" label="Users" current={route.name === "users"} />
         </nav>
         <div className="right">
           <button

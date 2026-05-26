@@ -13,7 +13,8 @@ export type Route =
   | { name: "graph" }
   | { name: "staging" }
   | { name: "tags" }
-  | { name: "activity" };
+  | { name: "activity" }
+  | { name: "users" };
 
 function parse(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
@@ -23,6 +24,7 @@ function parse(hash: string): Route {
   if (h === "staging") return { name: "staging" };
   if (h === "tags") return { name: "tags" };
   if (h === "activity") return { name: "activity" };
+  if (h === "users") return { name: "users" };
   const m = h.match(/^entries\/([0-9a-fA-F-]{36})$/);
   if (m) return { name: "entry", id: m[1] };
   return { name: "dashboard" };
@@ -50,6 +52,7 @@ export function href(route: Route): string {
     case "staging":   return "#/staging";
     case "tags":      return "#/tags";
     case "activity":  return "#/activity";
+    case "users":     return "#/users";
     case "entry":     return `#/entries/${route.id}`;
   }
 }
