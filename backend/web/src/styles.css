@@ -694,6 +694,27 @@ main:has(.graph-page) { max-width: none; padding: 0; }
 .link-btn.danger { color: var(--red); }
 .small { font-size: 12px; }
 
+/* --- Filter chips (status tabs, etc.) ------------------------------------ */
+.filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip .count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.chip.active .count { color: rgba(255, 255, 255, 0.85); }
+
 /* --- Staging ------------------------------------------------------------- */
 .staging-list { display: flex; flex-direction: column; gap: 12px; }
 .staging-card {

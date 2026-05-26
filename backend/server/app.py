@@ -110,11 +110,16 @@ async def export_snapshot(request: Request) -> Response:
     if not auth:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
 
-    upstream = await _client.get(
-        f"{_resolve_upstream(request)}/entries",
-        params={"limit": 200},
-        headers={"Authorization": auth},
-    )
+    try:
+        upstream = await _client.get(
+            f"{_resolve_upstream(request)}/entries",
+            params={"limit": 200},
+            headers={"Authorization": auth},
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Upstream KB timed out — retry.")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Cannot reach upstream KB: {e}")
     if upstream.status_code != 200:
         raise HTTPException(status_code=upstream.status_code, detail="Upstream /entries failed")
     entries = upstream.json()["entries"]
@@ -158,13 +163,21 @@ async def proxy(path: str, request: Request) -> Response:
         k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP
     }
     body = await request.body()
-    upstream = await _client.request(
-        request.method,
-        url,
-        params=request.query_params,
-        content=body,
-        headers=forward_headers,
-    )
+    try:
+        upstream = await _client.request(
+            request.method,
+            url,
+            params=request.query_params,
+            content=body,
+            headers=forward_headers,
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Upstream KB timed out (a sleeping Render instance can take ~30–60s to wake — retry).",
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Cannot reach upstream KB: {e}")
     # Strip hop-by-hop on the way back too.
     out_headers = {
         k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_BY_HOP

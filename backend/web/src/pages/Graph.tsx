@@ -187,6 +187,9 @@ export function Graph() {
   }
   if (error) return <div className="error">{error}</div>;
   if (!graph) return null;
+  if (graph.nodes.length === 0) {
+    return <div className="empty">This knowledge base has no entries yet — nothing to graph.</div>;
+  }
 
   const focusedTitle = focusId
     ? graph.nodes.find((n) => n.id === focusId)?.title || null

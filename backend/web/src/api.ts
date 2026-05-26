@@ -19,7 +19,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  const r = await fetch(`/api${path}`, { ...init, headers });
+  let r: Response;
+  try {
+    r = await fetch(`/api${path}`, { ...init, headers });
+  } catch {
+    // Transport-level failure (proxy down, or the connection was reset).
+    throw new ApiError(0, "Could not reach the backend proxy — is it running?");
+  }
   if (!r.ok) {
     let detail: string = r.statusText;
     try {
@@ -268,10 +274,13 @@ export interface SessionUser {
   source?: string;
 }
 
-// GET /session validates the key and returns the caller's identity (among a
-// larger manifest we ignore). Used to show "who am I" and gate admin actions.
+// GET /session-init validates the key and returns the caller's identity inside
+// the session manifest (manifest.user). Used to show "who am I" and gate admin
+// actions.
 export const getSession = () =>
-  request<{ user: SessionUser }>(`/session`).then((m) => m.user);
+  request<{ manifest: { user: SessionUser } }>(`/session-init`).then(
+    (m) => m.manifest.user,
+  );
 
 export interface LoginResponse {
   api_key: string;
