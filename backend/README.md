@@ -53,6 +53,15 @@ Open <http://localhost:5173>. On first load you'll be prompted for an API key �
 
 > **Note:** Phase 4 adds new npm dependencies (`cytoscape`, `@types/cytoscape`). After pulling these changes, run `npm install` in `backend/web/` before `npm run dev`.
 
+**Phase 5 — Polish.** Six features:
+
+- **Staging review** (`#/staging`) — pending/approved/rejected tabs; expand a row to preview proposed markdown; approve (promote to a live entry) or reject with an optional reason. Admin-only actions are role-gated.
+- **Tags admin** (`#/tags`) — list tags with counts, co-occurrence (with Jaccard) for a selected tag, and **rename / merge / delete** as client-side bulk rewrites (no tag-mutation API endpoint), with live progress and version-conflict retry. Admin-only.
+- **Activity log** (`#/activity`) — recent-changes feed reconstructed from entries ordered by `updated_at` (who/when/version) plus the pending staging queue. The API has no append-only audit trail.
+- **Bulk operations** — multi-select rows in the list view → bulk add-tag / move-folder / archive, with a progress indicator. Client-side fan-out of single-entry writes.
+- **Export** — "Export HTML" button downloads a self-contained snapshot built by the backend's `/export` endpoint, which reuses `tools/build_kb_demo.py` (same artifact as the share-out workflow).
+- **Identity / auth** — the stored key is validated against `/session`; the top bar shows your display name + role, and admin-only features are gated by it. Settings also offers an **email/password login** that calls `POST /login` — but this **rotates your API key** (revokes all existing keys), so it's a clearly-warned opt-in; pasting an existing key remains the default.
+
 ## What's next
 
-Phase 5 (polish: staging, audit, bulk ops, real auth), Phase 6 (Claude chat). See [PLAN.md](./PLAN.md).
+Phase 6 (Claude chat). See [PLAN.md](./PLAN.md).

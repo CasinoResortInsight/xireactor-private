@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, Entry, listEntries } from "../api";
 import { go } from "../router";
 import { EntryForm } from "../components/EntryForm";
-import { useMutationCounter } from "../mutations";
+import { notifyMutated, useMutationCounter } from "../mutations";
+import { toast } from "../components/Toast";
+import {
+  BulkProgress,
+  bulkAddTag,
+  bulkArchive,
+  bulkMoveFolder,
+} from "../bulkOps";
+import { exportSnapshot } from "../export";
 
 // Debounce hook — keeps every keystroke from hitting the API.
 function useDebounced<T>(value: T, ms: number): T {
@@ -27,10 +35,15 @@ export function EntryList() {
 
   const dq = useDebounced(query, 250);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
+  const [exporting, setExporting] = useState(false);
   const mutationN = useMutationCounter();
 
   // Reset to page 0 when any filter changes.
   useEffect(() => setOffset(0), [dq, type, path, tag]);
+  // Clear selection whenever the visible set changes.
+  useEffect(() => setSelected(new Set()), [dq, type, path, tag, offset, mutationN]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,9 +80,73 @@ export function EntryList() {
     [rows],
   );
 
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selected.has(r.id)),
+    [rows, selected],
+  );
+  const allOnPageSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function toggleAll() {
+    setSelected(allOnPageSelected ? new Set() : new Set(rows.map((r) => r.id)));
+  }
+
+  async function runBulk(
+    op: (entries: Entry[], onP: (p: BulkProgress) => void) => Promise<{ ok: number; failed: number }>,
+    label: string,
+  ) {
+    setBulkProgress({ done: 0, total: selectedRows.length });
+    try {
+      const res = await op(selectedRows, setBulkProgress);
+      if (res.failed === 0) toast.success(`${label}: ${res.ok} entries`);
+      else toast.error(`${label}: ${res.ok} ok, ${res.failed} failed`);
+      setSelected(new Set());
+      notifyMutated();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? `API ${e.status}: ${e.message}` : String(e));
+    } finally {
+      setBulkProgress(null);
+    }
+  }
+
+  function bulkTag() {
+    const t = window.prompt("Tag to add to selected entries:");
+    if (t && t.trim()) runBulk((es, onP) => bulkAddTag(es, t.trim(), onP), `Tagged "${t.trim()}"`);
+  }
+  function bulkMove() {
+    const f = window.prompt("Move selected entries into folder (e.g. archive/2026):");
+    if (f && f.trim()) runBulk((es, onP) => bulkMoveFolder(es, f.trim(), onP), "Moved");
+  }
+  function bulkArchiveSel() {
+    if (window.confirm(`Archive ${selectedRows.length} selected entries? This soft-deletes them.`)) {
+      runBulk((es, onP) => bulkArchive(es, onP), "Archived");
+    }
+  }
+
+  async function doExport() {
+    setExporting(true);
+    try {
+      await exportSnapshot();
+      toast.success("Snapshot downloaded");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? `API ${e.status}: ${e.message}` : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <>
       <div className="toolbar">
+        <button className="btn" onClick={doExport} disabled={exporting}>
+          {exporting ? "Exporting…" : "Export HTML"}
+        </button>
         <button className="btn primary" onClick={() => setCreating(true)}>
           + New entry
         </button>
@@ -104,6 +181,20 @@ export function EntryList() {
 
       {error && <div className="error">{error}</div>}
 
+      {selected.size > 0 && (
+        <div className="bulk-bar">
+          <span className="count">{selected.size} selected</span>
+          <button className="btn" disabled={!!bulkProgress} onClick={bulkTag}>Add tag</button>
+          <button className="btn" disabled={!!bulkProgress} onClick={bulkMove}>Move folder</button>
+          <button className="btn danger" disabled={!!bulkProgress} onClick={bulkArchiveSel}>Archive</button>
+          {bulkProgress ? (
+            <span className="muted">Working {bulkProgress.done}/{bulkProgress.total}…</span>
+          ) : (
+            <button className="link-btn" onClick={() => setSelected(new Set())}>clear</button>
+          )}
+        </div>
+      )}
+
       <div className="result-bar">
         <span>
           {loading
@@ -134,6 +225,14 @@ export function EntryList() {
       <table className="entry-table">
         <thead>
           <tr>
+            <th style={{ width: 32 }}>
+              <input
+                type="checkbox"
+                checked={allOnPageSelected}
+                onChange={toggleAll}
+                aria-label="Select all on page"
+              />
+            </th>
             <th style={{ width: 110 }}>Type</th>
             <th>Title</th>
             <th style={{ width: 240 }}>Folder</th>
@@ -143,7 +242,19 @@ export function EntryList() {
         </thead>
         <tbody>
           {rows.map((e) => (
-            <tr key={e.id} onClick={() => go({ name: "entry", id: e.id })}>
+            <tr
+              key={e.id}
+              className={selected.has(e.id) ? "sel" : ""}
+              onClick={() => go({ name: "entry", id: e.id })}
+            >
+              <td onClick={(ev) => ev.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(e.id)}
+                  onChange={() => toggleRow(e.id)}
+                  aria-label={`Select ${e.title}`}
+                />
+              </td>
               <td>
                 <span className={`card-type t-${e.content_type}`}>{e.content_type}</span>
               </td>
@@ -167,7 +278,7 @@ export function EntryList() {
           ))}
           {!loading && rows.length === 0 && (
             <tr>
-              <td colSpan={5} className="empty">
+              <td colSpan={6} className="empty">
                 No entries match these filters.
               </td>
             </tr>

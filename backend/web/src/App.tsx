@@ -2,6 +2,9 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { Dashboard } from "./pages/Dashboard";
 import { EntryList } from "./pages/EntryList";
 import { EntryDetail } from "./pages/EntryDetail";
+import { Staging } from "./pages/Staging";
+import { Tags } from "./pages/Tags";
+import { Activity } from "./pages/Activity";
 import { Settings } from "./components/Settings";
 
 // cytoscape is ~400 KB — only pull it in when the graph tab is opened.
@@ -10,6 +13,7 @@ import { ToastHost } from "./components/Toast";
 import { hasApiKey } from "./auth";
 import { Route, useRoute } from "./router";
 import { startLivePolling, stopLivePolling } from "./mutations";
+import { useIdentity } from "./identity";
 
 function NavLink({ to, label, current }: { to: string; label: string; current: boolean }) {
   return (
@@ -33,6 +37,12 @@ function CurrentView({ route }: { route: Route }) {
           <Graph />
         </Suspense>
       );
+    case "staging":
+      return <Staging />;
+    case "tags":
+      return <Tags />;
+    case "activity":
+      return <Activity />;
   }
 }
 
@@ -40,6 +50,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(!hasApiKey());
   const [upstream, setUpstream] = useState<"ok" | "err" | "unknown">("unknown");
   const route = useRoute();
+  const identity = useIdentity();
 
   useEffect(() => {
     fetch("/health")
@@ -79,11 +90,26 @@ export default function App() {
             current={route.name === "entries" || route.name === "entry"}
           />
           <NavLink to="#/graph" label="Graph" current={route.name === "graph"} />
+          <NavLink to="#/staging" label="Staging" current={route.name === "staging"} />
+          <NavLink to="#/tags" label="Tags" current={route.name === "tags"} />
+          <NavLink to="#/activity" label="Activity" current={route.name === "activity"} />
         </nav>
         <div className="right">
           <span className="status">
             <span className={`dot ${upstream}`} />
             proxy {upstream}
+          </span>
+          <span className="identity">
+            {identity.status === "ok" && (
+              <>
+                <b>{identity.user.display_name}</b>
+                <span className={`role-badge role-${identity.user.role}`}>{identity.user.role}</span>
+              </>
+            )}
+            {identity.status === "invalid" && (
+              <span className="identity-bad" title={identity.error}>key invalid</span>
+            )}
+            {identity.status === "anon" && <span className="muted">no key</span>}
           </span>
           <button className="btn" onClick={() => setShowSettings(true)}>
             Settings

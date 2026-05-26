@@ -56,6 +56,8 @@ export interface Entry {
   tags?: string[];
   updated_at: string;
   created_at: string;
+  updated_by?: string;
+  created_by?: string;
   version: number;
 }
 
@@ -199,6 +201,88 @@ export interface ContentTypeRow {
 }
 
 export const listTypes = () => request<{ types: ContentTypeRow[] }>(`/types`);
+
+// --- Staging ------------------------------------------------------------------
+
+export interface StagingItem {
+  id: string;
+  target_entry_id: string | null;
+  target_path: string;
+  change_type: string;
+  proposed_title: string | null;
+  proposed_content: string | null;
+  proposed_meta: Record<string, unknown> | null;
+  governance_tier: number;
+  submission_category: string;
+  status: string;
+  priority: number;
+  submitted_by: string;
+  source: string;
+  created_at: string;
+  promoted_entry_id?: string | null;
+}
+
+export interface StagingList {
+  items: StagingItem[];
+  total: number;
+}
+
+export const listStaging = (status = "pending") =>
+  request<StagingList>(`/staging${qs({ status })}`);
+
+export const approveStaging = (id: string, reason?: string) =>
+  request<StagingItem>(`/staging/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
+  });
+
+export const rejectStaging = (id: string, reason?: string) =>
+  request<StagingItem>(`/staging/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || null }),
+  });
+
+// --- Tag co-occurrence --------------------------------------------------------
+
+export interface TagCoOccurrence {
+  tag: string;
+  co_count: number;
+  jaccard: number;
+}
+
+export const coOccurringTags = (tag: string, limit = 15) =>
+  request<{ tag: string; neighbors: TagCoOccurrence[] }>(
+    `/tags/${encodeURIComponent(tag)}/co-occurring${qs({ limit })}`,
+  );
+
+// --- Identity / auth ----------------------------------------------------------
+
+export interface SessionUser {
+  id: string;
+  display_name: string;
+  role: string;
+  department: string | null;
+  source?: string;
+}
+
+// GET /session validates the key and returns the caller's identity (among a
+// larger manifest we ignore). Used to show "who am I" and gate admin actions.
+export const getSession = () =>
+  request<{ user: SessionUser }>(`/session`).then((m) => m.user);
+
+export interface LoginResponse {
+  api_key: string;
+  user: SessionUser;
+}
+
+// POST /login with JSON. NOTE: the API rotates (revoke-all-then-issue) the
+// user's API key on every login, so this invalidates any previously issued
+// key. The UI warns about this before calling it.
+export const login = (email: string, password: string) =>
+  request<LoginResponse>(`/login`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
 
 // Pull every entry by walking pages (API caps each page at 200). Capped at
 // `max` to keep dashboard cost bounded; Phase 2 switches to a streaming view.

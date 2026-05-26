@@ -9,10 +9,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://localhost:8012",
-        changeOrigin: true,
-      },
+      // Everything the SPA calls on the FastAPI proxy: the /api/* passthrough
+      // plus the root-level /health and /export endpoints.
+      "/api": { target: "http://localhost:8012", changeOrigin: true },
+      "/health": { target: "http://localhost:8012", changeOrigin: true },
+      "/export": { target: "http://localhost:8012", changeOrigin: true },
     },
   },
 });
