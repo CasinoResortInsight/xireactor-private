@@ -1,4 +1,4 @@
-import { getApiKey } from "./auth";
+import { getActiveBaseUrl, getApiKey } from "./auth";
 
 // All requests go through the local FastAPI proxy at /api/*, which forwards
 // to BRILLIANT_API_BASE and passes our Authorization header through.
@@ -11,8 +11,11 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const key = getApiKey();
+  const base = getActiveBaseUrl();
   const headers = new Headers(init.headers);
   if (key) headers.set("Authorization", `Bearer ${key}`);
+  // Tell the proxy which KB to forward to (empty → proxy default upstream).
+  if (base) headers.set("X-KB-Base", base);
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -283,6 +286,32 @@ export const login = (email: string, password: string) =>
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+
+// Login against a specific KB base (used from the connection editor before the
+// connection is active). Bypasses the active-connection header logic.
+export async function loginAt(
+  baseUrl: string,
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (baseUrl) headers["X-KB-Base"] = baseUrl;
+  const r = await fetch(`/api/login`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email, password }),
+  });
+  if (!r.ok) {
+    let detail = r.statusText;
+    try {
+      detail = (await r.json()).detail || detail;
+    } catch {
+      /* keep statusText */
+    }
+    throw new ApiError(r.status, detail);
+  }
+  return r.json() as Promise<LoginResponse>;
+}
 
 // Pull every entry by walking pages (API caps each page at 200). Capped at
 // `max` to keep dashboard cost bounded; Phase 2 switches to a streaming view.

@@ -3,14 +3,16 @@
 // browser download. We fetch with the Authorization header rather than a plain
 // link because the endpoint requires the bearer key.
 
-import { getApiKey } from "./auth";
+import { getActiveBaseUrl, getApiKey } from "./auth";
 import { ApiError } from "./api";
 
 export async function exportSnapshot(): Promise<void> {
   const key = getApiKey();
-  const r = await fetch("/export", {
-    headers: key ? { Authorization: `Bearer ${key}` } : {},
-  });
+  const base = getActiveBaseUrl();
+  const headers: Record<string, string> = {};
+  if (key) headers.Authorization = `Bearer ${key}`;
+  if (base) headers["X-KB-Base"] = base;
+  const r = await fetch("/export", { headers });
   if (!r.ok) {
     let detail = r.statusText;
     try {

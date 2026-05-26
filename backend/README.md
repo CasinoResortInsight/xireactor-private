@@ -82,6 +82,12 @@ ANTHROPIC_API_KEY=sk-ant-… BRILLIANT_API_BASE=http://localhost:8010 \
 
 **Guardrails:** `KB_CHAT_MAX_TURNS` (default 30) and `KB_CHAT_DAILY_USD_BUDGET` (default $5, per process) cap runaway cost. Writes always require explicit approval.
 
+## Multiple knowledge bases
+
+The console can switch between several Brilliant instances hosted in different locations. Open **Settings → Knowledge bases** and add a connection per KB: a name, an API base URL, an API key (paste one, or fetch via email login), and an optional remote MCP URL for chat. The active connection drives every request — its key goes out as `Authorization: Bearer …` and its base as an `X-KB-Base` header that the proxy uses to choose the upstream. The active KB name shows in the top bar; switching reloads the console so all views, identity, and the chat reconnect against the chosen KB.
+
+A blank base URL means "use the proxy's own default upstream" (`BRILLIANT_API_BASE`) — handy for local dev. To restrict which upstreams the proxy will forward to, set `BRILLIANT_ALLOWED_BASES` (see `server/.env.example`). Connections live in the browser's `localStorage`; an older single pasted key is migrated into a "Default" connection automatically.
+
 ## What's next
 
 All six planned phases are implemented. Future ideas: true SSE/WS push from `api/` (replace polling), server-side batch endpoints for tag/bulk ops, and cross-reload chat session resume via `resume=<session_id>`.

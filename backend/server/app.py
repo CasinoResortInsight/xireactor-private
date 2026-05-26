@@ -22,6 +22,33 @@ from fastapi.middleware.cors import CORSMiddleware
 
 API_BASE = os.environ.get("BRILLIANT_API_BASE", "http://localhost:8010").rstrip("/")
 
+# Multi-KB support: the SPA can target different Brilliant instances by sending
+# an `X-KB-Base` header per request. When absent, the env default is used.
+# Optional allow-list (comma-separated bases) constrains where the proxy will
+# forward — leave unset on a trusted single-operator machine.
+_ALLOWED_BASES = {
+    b.strip().rstrip("/")
+    for b in os.environ.get("BRILLIANT_ALLOWED_BASES", "").split(",")
+    if b.strip()
+}
+
+
+def _resolve_upstream(request: Request) -> str:
+    """Pick the upstream Brilliant API base for this request.
+
+    Honors the `X-KB-Base` header (multi-KB switching). Validates the scheme
+    and, if `BRILLIANT_ALLOWED_BASES` is set, that the base is allow-listed.
+    Falls back to the env default when the header is absent.
+    """
+    raw = (request.headers.get("x-kb-base") or "").strip().rstrip("/")
+    if not raw:
+        return API_BASE
+    if not raw.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="X-KB-Base must be http(s)")
+    if _ALLOWED_BASES and raw not in _ALLOWED_BASES:
+        raise HTTPException(status_code=403, detail="X-KB-Base not allow-listed")
+    return raw
+
 # Reuse the standalone demo builder (tools/build_kb_demo.py) for the "Export
 # snapshot" feature — same self-contained HTML artifact the share-out workflow
 # already relies on. We only borrow its pure helpers (derive_links,
@@ -84,7 +111,7 @@ async def export_snapshot(request: Request) -> Response:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
 
     upstream = await _client.get(
-        f"{API_BASE}/entries",
+        f"{_resolve_upstream(request)}/entries",
         params={"limit": 200},
         headers={"Authorization": auth},
     )
@@ -117,6 +144,7 @@ _HOP_BY_HOP = {
     "proxy-authorization",
     "te",
     "trailers",
+    "x-kb-base",  # consumed here; never forwarded upstream
 }
 
 
@@ -125,7 +153,7 @@ _HOP_BY_HOP = {
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
 )
 async def proxy(path: str, request: Request) -> Response:
-    url = f"{API_BASE}/{path}"
+    url = f"{_resolve_upstream(request)}/{path}"
     forward_headers = {
         k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP
     }

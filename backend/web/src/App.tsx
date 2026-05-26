@@ -12,7 +12,7 @@ const Graph = lazy(() => import("./pages/Graph").then((m) => ({ default: m.Graph
 import { ToastHost } from "./components/Toast";
 import { ChatPanel } from "./components/ChatPanel";
 import { chatClient } from "./chat";
-import { hasApiKey } from "./auth";
+import { getActiveConnection, hasApiKey } from "./auth";
 import { Route, useRoute } from "./router";
 import { startLivePolling, stopLivePolling } from "./mutations";
 import { useIdentity } from "./identity";
@@ -98,6 +98,14 @@ export default function App() {
           <NavLink to="#/activity" label="Activity" current={route.name === "activity"} />
         </nav>
         <div className="right">
+          <button
+            className="kb-switcher"
+            onClick={() => setShowSettings(true)}
+            title="Switch knowledge base"
+          >
+            <span className="kb-dot" />
+            {getActiveConnection()?.name || "no KB"}
+          </button>
           <span className="status">
             <span className={`dot ${upstream}`} />
             proxy {upstream}
